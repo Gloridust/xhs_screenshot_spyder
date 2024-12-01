@@ -1,1 +1,8 @@
- 
+selenium
+pillow
+flask
+flask-cors
+opencv-python
+numpy
+pyinstaller
+requests 

@@ -9,13 +9,15 @@ import os
 import sys
 import io
 from queue import Queue
-from threading import Thread
+from threading import Thread, Event
 import time
 import webbrowser
 import subprocess
 import platform
 import shutil
 import socket
+import requests
+from urllib.parse import urljoin
 
 app = Flask(__name__)
 CORS(app)  # 启用 CORS
@@ -24,6 +26,15 @@ CORS(app)  # 启用 CORS
 output_queue = Queue()
 current_driver = None
 processing = False
+login_confirmed = Event()
+
+# 添加资源URL配置
+RESOURCE_BASE_URL = "https://raw.githubusercontent.com/Gloridust/xhs_screenshot_spyder/main/src/"
+REQUIRED_RESOURCES = {
+    "top.jpg": "top.jpg",
+    "bottom.jpg": "bottom.jpg",
+    "example_real.jpg": "example_real.jpg"
+}
 
 def open_folder(path):
     """跨平台打开文件夹"""
@@ -61,6 +72,39 @@ class OutputCapture:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         sys.stdout = self.original_stdout
+
+def download_resource(filename):
+    """从GitHub下载资源文件"""
+    url = urljoin(RESOURCE_BASE_URL, filename)
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        
+        # 确保src目录存在
+        os.makedirs("src", exist_ok=True)
+        
+        # 保存文件
+        file_path = os.path.join("src", filename)
+        with open(file_path, "wb") as f:
+            f.write(response.content)
+        print(f"已下载资源文件: {filename}")
+        return True
+    except Exception as e:
+        print(f"下载资源文件失败 {filename}: {str(e)}")
+        return False
+
+def check_and_download_resources():
+    """检查并下载缺失的资源文件"""
+    missing_resources = []
+    for filename in REQUIRED_RESOURCES.keys():
+        file_path = os.path.join("src", filename)
+        if not os.path.exists(file_path):
+            missing_resources.append(filename)
+    
+    if missing_resources:
+        print("检测到缺失的资源文件，正在从GitHub下载...")
+        for filename in missing_resources:
+            download_resource(filename)
 
 @app.route('/')
 def index():
@@ -107,13 +151,25 @@ def start_process():
                 # 设置浏览器
                 current_driver = setup_browser(use_previous)
                 
+                # 如果不使用上次配置，需要等待登录
+                if not use_previous:
+                    output_queue.put("\n请在浏览器中完成登录，然后点击下方的【确认已登录】按钮继续...")
+                    # 打开小红书登录页面
+                    current_driver.get("https://www.xiaohongshu.com")
+                    # 等待登录确认信号
+                    while not login_confirmed.is_set():
+                        time.sleep(0.5)
+                        if not processing:  # 如果处理被终止
+                            return
+                    output_queue.put("已确认登录，开始处理...")
+                
                 # 遍历URL并截图
                 for i, url in enumerate(urls, 1):
                     process_single_url(current_driver, url, i, top_img, bottom_img, back_icon)
                 
-                # 保存会话（如果需要）
-                if not use_previous:
-                    save_browser_session(current_driver)
+                # 总是保存会话
+                save_browser_session(current_driver)
+                output_queue.put("已保存浏览器配置，下次可以直接使用")
                 
                 output_queue.put("\n✨ 任务完成！所有截图已保存。")
                     
@@ -122,6 +178,7 @@ def start_process():
                     current_driver.quit()
                     current_driver = None
                 processing = False
+                login_confirmed.clear()  # 重置登录确认状态
     
     # 启动处理线程
     Thread(target=process_task, daemon=True).start()
@@ -129,6 +186,15 @@ def start_process():
     return jsonify({
         'success': True,
         'message': '任务已启动'
+    })
+
+@app.route('/confirm_login', methods=['POST'])
+def confirm_login():
+    """确认登录完成"""
+    login_confirmed.set()
+    return jsonify({
+        'success': True,
+        'message': '已确认登录'
     })
 
 @app.route('/open_output_folder', methods=['POST'])
@@ -175,6 +241,10 @@ def clear_workspace():
 def prepare_resources():
     """准备资源文件"""
     with OutputCapture():
+        # 首先检查并下载缺失的资源
+        check_and_download_resources()
+        
+        # 然后处理资源
         success = all([
             prepare_top_image(),
             prepare_bottom_image(),
@@ -211,10 +281,17 @@ def get_screenshots():
 # 修改静态文件路由
 @app.route('/screenshots/<path:filename>')
 def serve_screenshot(filename):
-    # 添加必要的 CORS 头部和安全检查
-    response = send_from_directory('screenshot', filename)
-    response.headers['Access-Control-Allow-Origin'] = '*'
-    return response
+    """服务截图文件"""
+    try:
+        return send_from_directory(
+            os.path.abspath('./screenshot'),
+            filename,
+            mimetype='image/png',
+            as_attachment=False
+        )
+    except Exception as e:
+        print(f"加载图片失败: {str(e)}")
+        return '', 404
 
 def find_available_port(start_port=5000, max_attempts=10):
     """查找可用端口"""
@@ -229,6 +306,14 @@ def find_available_port(start_port=5000, max_attempts=10):
         except OSError:
             continue
     raise RuntimeError(f"在端口范围 {start_port}-{start_port + max_attempts - 1} 内未找到可用端口")
+
+@app.route('/check_config')
+def check_config():
+    """检查是否存在浏览器配置"""
+    has_config = os.path.exists("./chrome_user_data")
+    return jsonify({
+        'has_config': has_config
+    })
 
 if __name__ == '__main__':
     try:

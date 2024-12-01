@@ -279,6 +279,33 @@
                 font-size: 16px;
             }
         }
+        
+        .confirm-btn {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .confirm-btn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 1.2em;
+        }
+        .modal-content img {
+            transition: opacity 0.3s;
+        }
+        .error-details {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -288,7 +315,7 @@
             
             <div class="controls">
                 <div class="checkbox-group">
-                    <input type="checkbox" id="useConfig" {% if not has_config %}disabled{% endif %} checked>
+                    <input type="checkbox" id="useConfig" disabled>
                     <label for="useConfig">使用上次浏览器配置</label>
                 </div>
                 
@@ -300,6 +327,7 @@
                     <button class="secondary-btn" onclick="prepareResources()">准备资源</button>
                     <button class="secondary-btn" onclick="openOutputFolder()">打开输出文件夹</button>
                     <button class="danger-btn" onclick="clearWorkspace()">清空工作区</button>
+                    <button class="confirm-btn" id="confirmLoginBtn" style="display: none;" onclick="confirmLogin()">确认已登录</button>
                 </div>
             </div>
             
@@ -332,10 +360,21 @@
                 .then(response => response.json())
                 .then(data => {
                     const output = document.getElementById('output');
+                    const confirmBtn = document.getElementById('confirmLoginBtn');
+                    
                     data.messages.forEach(msg => {
+                        if (msg.includes("请在浏览器中完成登录")) {
+                            confirmBtn.style.display = 'inline-block';
+                        } else if (msg.includes("已确认登录")) {
+                            confirmBtn.style.display = 'none';
+                        } else if (msg.includes("浏览器配置已保存")) {
+                            checkConfig();
+                        }
+                        
                         if (msg.includes("✨ 任务完成")) {
                             output.innerHTML += `<span class="success">${msg}</span><br>`;
                             updateScreenshots();
+                            checkConfig();
                         } else {
                             output.innerHTML += msg + '<br>';
                         }
@@ -345,6 +384,9 @@
                     processing = data.processing;
                     if (processing) {
                         setTimeout(updateOutput, 1000);
+                    } else {
+                        confirmBtn.style.display = 'none';
+                        checkConfig();
                     }
                 });
         }
@@ -364,7 +406,7 @@
         }
         
         function startProcess() {
-            const useConfig = document.getElementById('useConfig').checked;
+            const useConfig = document.getElementById('useConfig').checked && !document.getElementById('useConfig').disabled;
             const urls = document.getElementById('urlList').value;
             
             fetch('/start_process', {
@@ -384,6 +426,9 @@
                     updateOutput();
                 }
                 document.getElementById('status').textContent = data.message;
+            })
+            .finally(() => {
+                setTimeout(checkConfig, 1000);
             });
         }
         
@@ -429,19 +474,35 @@
                         // 获取最新的截图
                         const latest = screenshots[screenshots.length - 1];
                         
-                        // 创建图片加载Promise
+                        // 构建完整的图片URL
+                        const imageUrl = `${window.location.origin}/screenshots/${latest.filename}?t=${new Date().getTime()}`;
+                        
+                        // 创建新的图片元素
                         const img = new Image();
                         img.onload = () => {
                             latestScreenshot.innerHTML = `
-                                <img src="${latest.path}" alt="${latest.filename}" 
-                                     onclick="showPreview('${latest.path}')">
+                                <img src="${imageUrl}" 
+                                     alt="${latest.filename}" 
+                                     onclick="showPreview('${imageUrl}')">
                                 <div class="screenshot-filename">${latest.filename}</div>
                             `;
                         };
-                        img.src = latest.path;
+                        img.onerror = (e) => {
+                            console.error('Failed to load image:', imageUrl, e);
+                            latestScreenshot.innerHTML = `
+                                <div class="error">加载图片失败</div>
+                                <div class="error-details">文件名: ${latest.filename}</div>
+                            `;
+                        };
+                        img.src = imageUrl;
                     } else {
                         latestScreenshot.innerHTML = '<div class="no-screenshot">暂无截图</div>';
                     }
+                })
+                .catch(error => {
+                    console.error('Error fetching screenshots:', error);
+                    const latestScreenshot = document.getElementById('latestScreenshot');
+                    latestScreenshot.innerHTML = '<div class="error">获取预览失败</div>';
                 });
         }
         
@@ -449,6 +510,20 @@
             const modal = document.getElementById('previewModal');
             const modalImg = document.getElementById('modalImage');
             modal.style.display = 'flex';
+            
+            // 添加加载指示器
+            modalImg.style.opacity = '0';
+            modal.insertAdjacentHTML('beforeend', '<div class="loading">加载中...</div>');
+            
+            // 加载新图片
+            modalImg.onload = () => {
+                modalImg.style.opacity = '1';
+                const loading = modal.querySelector('.loading');
+                if (loading) loading.remove();
+            };
+            modalImg.onerror = () => {
+                modal.querySelector('.loading').innerHTML = '加载失败';
+            };
             modalImg.src = imagePath;
         }
         
@@ -459,6 +534,66 @@
         setInterval(updateScreenshots, 2000);
         
         document.addEventListener('DOMContentLoaded', updateScreenshots);
+        
+        function checkConfig() {
+            fetch('/check_config')
+                .then(response => response.json())
+                .then(data => {
+                    const checkbox = document.getElementById('useConfig');
+                    if (data.has_config) {
+                        checkbox.disabled = false;
+                        checkbox.checked = false;
+                    } else {
+                        checkbox.disabled = true;
+                        checkbox.checked = false;
+                    }
+                });
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            checkConfig();
+            updateScreenshots();
+        });
+        
+        function confirmLogin() {
+            const confirmBtn = document.getElementById('confirmLoginBtn');
+            confirmBtn.disabled = true;
+            
+            fetch('/confirm_login', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    confirmBtn.style.display = 'none';
+                }
+            })
+            .finally(() => {
+                confirmBtn.disabled = false;
+            });
+        }
+        
+        // 添加样式
+        const style = document.createElement('style');
+        style.textContent = `
+            .loading {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                color: white;
+                font-size: 1.2em;
+            }
+            .modal-content img {
+                transition: opacity 0.3s;
+            }
+            .error-details {
+                font-size: 0.8em;
+                color: #666;
+                margin-top: 5px;
+            }
+        `;
+        document.head.appendChild(style);
     </script>
 </body>
 </html> 

@@ -1,3 +1,6 @@
 chrome_user_data/
 screenshot/
 .DS_Store
+build/
+dist/
+__pycache__/

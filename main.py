@@ -284,7 +284,7 @@ def process_single_url(driver, url, index, top_img, bottom_img, back_icon):
         
         # 处理第一张图片
         with Image.open(temp_screenshot_path) as img:
-            # 调整主截图尺寸
+            # 调整主截��尺寸
             resized_img = img.resize((1179, 2490), Image.Resampling.LANCZOS)
             # 裁切时去掉上面195px(180+15)和下面5px
             cropped_img = resized_img.crop((0, 195, 1179, 2485))
@@ -463,7 +463,7 @@ def prepare_bottom_image():
             
     except PermissionError:
         print(f"权限错误：无法访问或修改文件 ({bottom_path})")
-        print("请检查文件权限或以管理员权限运行程���")
+        print("请检查文件权限或以管理员权限运行程")
         return False
     except Exception as e:
         print(f"处理底部图片时出错: {str(e)}")
