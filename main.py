@@ -196,7 +196,6 @@ def prepare_back_icon():
     # 读取原始图片
     real_path = "src/example_real.jpg"
     back_path = "src/back.png"
-    debug_path = "src/debug_back_crop.png"  # 用于调试的可视化图片
     
     try:
         if not os.path.exists(real_path):
@@ -205,11 +204,7 @@ def prepare_back_icon():
             
         # 使用 PIL 打开图片并裁剪
         with Image.open(real_path) as img:
-            # 创建调试用的图片副本
-            debug_img = img.copy()
-            
             # 计算正方形区域（以最长边为准）
-            # 原始区域 (26, 205) -> (108, 317)
             width = 108 - 26
             height = 317 - 205
             size = max(width, height)  # 取最长边
@@ -226,28 +221,12 @@ def prepare_back_icon():
                 center_y + half_size   # bottom
             )
             
-            # 在调试图片上绘制裁剪框
-            from PIL import ImageDraw
-            draw = ImageDraw.Draw(debug_img)
-            draw.rectangle(crop_box, outline='red', width=2)
-            
-            # 保存调试图片
-            debug_img.save(debug_path)
-            print(f"已保存裁剪区域可视化图片: {debug_path}")
-            
             # 裁剪返回图标
             back_icon = img.crop(crop_box)
             
             # 保存返回图标
             back_icon.save(back_path, "PNG")
             print(f"返回图标已保存 (尺寸: {size}×{size})")
-            
-            # 显示裁剪区域的像素值，帮助诊断
-            pixels = list(back_icon.getdata())
-            is_all_white = all(p == (255, 255, 255) for p in pixels)
-            if is_all_white:
-                print("警告：裁剪出的图标是纯白色的，可能裁剪区域有误")
-            
             return True
             
     except Exception as e:
@@ -258,12 +237,7 @@ def replace_back_icon(image_path, back_icon):
     """替换图片中的返回图标"""
     try:
         with Image.open(image_path) as img:
-            # 创建调试用的图片副本
-            debug_path = image_path.replace('.png', '_debug.png')
-            debug_img = img.copy()
-            
             # 计算正方形区域（以最长边为准）
-            # 目标区域 (35, 170) -> (118, 257)
             width = 118 - 35
             height = 257 - 170
             size = max(width, height)  # 取最长边
@@ -280,27 +254,14 @@ def replace_back_icon(image_path, back_icon):
                 center_y + half_size   # bottom
             )
             
-            # 在调试图片上绘制替换区域
-            from PIL import ImageDraw
-            draw = ImageDraw.Draw(debug_img)
-            draw.rectangle(paste_box, outline='blue', width=2)
-            
-            # 保存带标注的调试图片
-            debug_img.save(debug_path)
-            print(f"已保存替换区域可视化图片: {debug_path}")
-            
             # 将返回图标粘贴到指定位置
             paste_pos = (paste_box[0], paste_box[1])
             img.paste(back_icon, paste_pos)
             
             # 保存修改后的图片
             img.save(image_path, quality=95)
-            
-            # 显示一些调试信息
-            print(f"替换区域: {paste_box}")
-            print(f"返回图标尺寸: {back_icon.size}")
-            
             return True
+            
     except Exception as e:
         print(f"替换返回图标时出错: {str(e)}")
         return False
@@ -502,7 +463,7 @@ def prepare_bottom_image():
             
     except PermissionError:
         print(f"权限错误：无法访问或修改文件 ({bottom_path})")
-        print("请检查文件权限或以管理员权限运行程序")
+        print("请检查文件权限或以管理员权限运行程���")
         return False
     except Exception as e:
         print(f"处理底部图片时出错: {str(e)}")
