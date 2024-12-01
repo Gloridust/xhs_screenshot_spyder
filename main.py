@@ -1,7 +1,9 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from PIL import Image
 import os
 import time
@@ -9,6 +11,7 @@ import threading
 import sys
 import shutil
 from select import select
+from selenium.webdriver.common.action_chains import ActionChains
 
 # 添加用户数据目录的常量
 USER_DATA_DIR = "./chrome_user_data"
@@ -130,6 +133,134 @@ def wait_for_login(driver, timeout=60):
             break
         time.sleep(0.1)
 
+def check_and_click_next_button(driver):
+    """检查并点击下一页按钮"""
+    try:
+        # 使用 XPath 定位按钮
+        button = driver.find_element(By.XPATH, '//*[@id="noteContainer"]/div[2]/div/div/div[5]/div')
+        
+        if button:
+            # 创建 ActionChains 对象
+            actions = ActionChains(driver)
+            
+            # 先滚动到按钮位置
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", button)
+            time.sleep(0.5)
+            
+            # 获取按钮的位置和大小
+            location = button.location
+            size = button.size
+            
+            # 计算按钮的中心点
+            center_x = location['x'] + size['width'] / 2
+            center_y = location['y'] + size['height'] / 2
+            
+            # 模拟鼠标移动到按钮中心
+            actions.move_to_element_with_offset(button, size['width']/2, size['height']/2)
+            actions.perform()
+            time.sleep(0.5)
+            
+            # 尝试点击按钮中心
+            try:
+                # 使用 JavaScript 在中心点击
+                script = f"""
+                    var element = arguments[0];
+                    var rect = element.getBoundingClientRect();
+                    var centerX = rect.left + rect.width/2;
+                    var centerY = rect.top + rect.height/2;
+                    var clickEvent = document.createEvent('MouseEvents');
+                    clickEvent.initMouseEvent('click', true, true, window, 0, 0, 0, centerX, centerY, false, false, false, false, 0, null);
+                    element.dispatchEvent(clickEvent);
+                """
+                driver.execute_script(script, button)
+            except:
+                # 如果 JavaScript 点击失败，尝试直接点击中心
+                actions.move_to_element_with_offset(button, size['width']/2, size['height']/2).click().perform()
+            
+            # 等待页面加载
+            time.sleep(1)
+            print("成功点击下一页按钮")
+            return True
+            
+    except NoSuchElementException:
+        print("未找到下一页按钮")
+        return False
+    except Exception as e:
+        print(f"点击下一页按钮时出错: {str(e)}")
+        return False
+
+def process_single_url(driver, url, index, top_img, bottom_img):
+    """处理单个URL的截图"""
+    try:
+        print(f"正在处理第 {index} 个URL: {url}")
+        driver.get(url)
+        
+        # 等待页面加载完成
+        time.sleep(2)
+        
+        # 处理第一张截图
+        temp_screenshot_path = f'./screenshot/temp_{index}_1.png'
+        final_screenshot_path = f'./screenshot/{index}_1.png'
+        
+        # 保存第一张截图
+        driver.save_screenshot(temp_screenshot_path)
+        
+        # 处理第一张图片
+        with Image.open(temp_screenshot_path) as img:
+            # 调整主截图尺寸
+            resized_img = img.resize((1179, 2490), Image.Resampling.LANCZOS)
+            # 裁切时去掉上面195px(180+15)和下面5px
+            cropped_img = resized_img.crop((0, 195, 1179, 2485))
+            
+            # 创建最终尺寸的空白图片 (1179 × 2556)
+            final_img = Image.new('RGB', (1179, 2556), 'white')
+            
+            # 拼接图片
+            final_img.paste(top_img, (0, 0))
+            final_img.paste(cropped_img, (0, 165))
+            final_img.paste(bottom_img, (0, 2455))
+            
+            # 保存最终图片
+            final_img.save(final_screenshot_path, quality=95)
+        
+        # 删除临时文件
+        os.remove(temp_screenshot_path)
+        print(f"第一张截图已保存: {final_screenshot_path}")
+        
+        # 检查并点击下一页按钮
+        if check_and_click_next_button(driver):
+            print("检测到下一页按钮，正在截取第二张图...")
+            
+            # 处理第二张截图
+            temp_screenshot_path = f'./screenshot/temp_{index}_2.png'
+            final_screenshot_path = f'./screenshot/{index}_2.png'
+            
+            # 等待新页面加载
+            time.sleep(1)
+            
+            # 保存第二张截图
+            driver.save_screenshot(temp_screenshot_path)
+            
+            # 处理第二张图片
+            with Image.open(temp_screenshot_path) as img:
+                resized_img = img.resize((1179, 2490), Image.Resampling.LANCZOS)
+                cropped_img = resized_img.crop((0, 195, 1179, 2485))
+                
+                final_img = Image.new('RGB', (1179, 2556), 'white')
+                final_img.paste(top_img, (0, 0))
+                final_img.paste(cropped_img, (0, 165))
+                final_img.paste(bottom_img, (0, 2455))
+                
+                final_img.save(final_screenshot_path, quality=95)
+            
+            # 删除临时文件
+            os.remove(temp_screenshot_path)
+            print(f"第二张截图已保存: {final_screenshot_path}")
+        
+    except Exception as e:
+        print(f"处理URL时出错: {url}")
+        print(f"错误信息: {str(e)}")
+
 def capture_screenshots():
     """主函数：捕获截图"""
     # 询问是否使用上次的会话（默认使用）
@@ -167,48 +298,7 @@ def capture_screenshots():
         
         # 遍历URL并截图
         for i, url in enumerate(urls, 1):
-            try:
-                print(f"正在处理第 {i} 个URL: {url}")
-                driver.get(url)
-                
-                # 等待页面加载完成
-                time.sleep(3)
-                
-                # 临时截图路径
-                temp_screenshot_path = f'./screenshot/temp_{i}_1.png'
-                final_screenshot_path = f'./screenshot/{i}_1.png'
-                
-                # 保存原始截图
-                driver.save_screenshot(temp_screenshot_path)
-                
-                # 打开图片并进行处理
-                with Image.open(temp_screenshot_path) as img:
-                    # 调整主截图尺寸
-                    resized_img = img.resize((1179, 2490), Image.Resampling.LANCZOS)
-                    # 裁切时去掉上面195px(180+15)和下面5px
-                    cropped_img = resized_img.crop((0, 195, 1179, 2485))
-                    
-                    # 创建最终尺寸的空白图片 (1179 × 2556)
-                    final_img = Image.new('RGB', (1179, 2556), 'white')
-                    
-                    # 拼接顺序：
-                    # 顶部图片(165px) + 主截图(2290px) + 底部图片(101px)
-                    final_img.paste(top_img, (0, 0))  # 顶部图片
-                    final_img.paste(cropped_img, (0, 165))  # 主截图
-                    final_img.paste(bottom_img, (0, 2455))  # 底部图片位置调整
-                    
-                    # 保存最终图片
-                    final_img.save(final_screenshot_path, quality=95)
-                
-                # 删除临时文件
-                os.remove(temp_screenshot_path)
-                
-                print(f"截图已保存并处理: {final_screenshot_path}")
-                
-            except Exception as e:
-                print(f"处理URL时出错: {url}")
-                print(f"错误信息: {str(e)}")
-                continue
+            process_single_url(driver, url, i, top_img, bottom_img)
         
         # 只有在没有使用历史配置时才询问是否保存
         if not use_previous:
