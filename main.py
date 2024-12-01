@@ -189,7 +189,123 @@ def check_and_click_next_button(driver):
         print(f"点击下一页按钮时出错: {str(e)}")
         return False
 
-def process_single_url(driver, url, index, top_img, bottom_img):
+def prepare_back_icon():
+    """准备返回图标"""
+    print("正在准备返回图标...")
+    
+    # 读取原始图片
+    real_path = "src/example_real.jpg"
+    back_path = "src/back.png"
+    debug_path = "src/debug_back_crop.png"  # 用于调试的可视化图片
+    
+    try:
+        if not os.path.exists(real_path):
+            print(f"错误：找不到示例图片 ({real_path})")
+            return False
+            
+        # 使用 PIL 打开图片并裁剪
+        with Image.open(real_path) as img:
+            # 创建调试用的图片副本
+            debug_img = img.copy()
+            
+            # 计算正方形区域（以最长边为准）
+            # 原始区域 (26, 205) -> (108, 317)
+            width = 108 - 26
+            height = 317 - 205
+            size = max(width, height)  # 取最长边
+            
+            # 计算居中的正方形区域
+            center_x = (26 + 108) // 2
+            center_y = (205 + 317) // 2
+            half_size = size // 2
+            
+            crop_box = (
+                center_x - half_size,  # left
+                center_y - half_size,  # top
+                center_x + half_size,  # right
+                center_y + half_size   # bottom
+            )
+            
+            # 在调试图片上绘制裁剪框
+            from PIL import ImageDraw
+            draw = ImageDraw.Draw(debug_img)
+            draw.rectangle(crop_box, outline='red', width=2)
+            
+            # 保存调试图片
+            debug_img.save(debug_path)
+            print(f"已保存裁剪区域可视化图片: {debug_path}")
+            
+            # 裁剪返回图标
+            back_icon = img.crop(crop_box)
+            
+            # 保存返回图标
+            back_icon.save(back_path, "PNG")
+            print(f"返回图标已保存 (尺寸: {size}×{size})")
+            
+            # 显示裁剪区域的像素值，帮助诊断
+            pixels = list(back_icon.getdata())
+            is_all_white = all(p == (255, 255, 255) for p in pixels)
+            if is_all_white:
+                print("警告：裁剪出的图标是纯白色的，可能裁剪区域有误")
+            
+            return True
+            
+    except Exception as e:
+        print(f"处理返回图标时出错: {str(e)}")
+        return False
+
+def replace_back_icon(image_path, back_icon):
+    """替换图片中的返回图标"""
+    try:
+        with Image.open(image_path) as img:
+            # 创建调试用的图片副本
+            debug_path = image_path.replace('.png', '_debug.png')
+            debug_img = img.copy()
+            
+            # 计算正方形区域（以最长边为准）
+            # 目标区域 (35, 170) -> (118, 257)
+            width = 118 - 35
+            height = 257 - 170
+            size = max(width, height)  # 取最长边
+            
+            # 计算居中的正方形区域
+            center_x = (35 + 118) // 2
+            center_y = (170 + 257) // 2
+            half_size = size // 2
+            
+            paste_box = (
+                center_x - half_size,  # left
+                center_y - half_size,  # top
+                center_x + half_size,  # right
+                center_y + half_size   # bottom
+            )
+            
+            # 在调试图片上绘制替换区域
+            from PIL import ImageDraw
+            draw = ImageDraw.Draw(debug_img)
+            draw.rectangle(paste_box, outline='blue', width=2)
+            
+            # 保存带标注的调试图片
+            debug_img.save(debug_path)
+            print(f"已保存替换区域可视化图片: {debug_path}")
+            
+            # 将返回图标粘贴到指定位置
+            paste_pos = (paste_box[0], paste_box[1])
+            img.paste(back_icon, paste_pos)
+            
+            # 保存修改后的图片
+            img.save(image_path, quality=95)
+            
+            # 显示一些调试信息
+            print(f"替换区域: {paste_box}")
+            print(f"返回图标尺寸: {back_icon.size}")
+            
+            return True
+    except Exception as e:
+        print(f"替换返回图标时出错: {str(e)}")
+        return False
+
+def process_single_url(driver, url, index, top_img, bottom_img, back_icon):
     """处理单个URL的截图"""
     try:
         print(f"正在处理第 {index} 个URL: {url}")
@@ -222,40 +338,46 @@ def process_single_url(driver, url, index, top_img, bottom_img):
             
             # 保存最终图片
             final_img.save(final_screenshot_path, quality=95)
-        
-        # 删除临时文件
-        os.remove(temp_screenshot_path)
-        print(f"第一张截图已保存: {final_screenshot_path}")
-        
-        # 检查并点击下一页按钮
-        if check_and_click_next_button(driver):
-            print("检测到下一页按钮，正在截取第二张图...")
             
-            # 处理第二张截图
-            temp_screenshot_path = f'./screenshot/temp_{index}_2.png'
-            final_screenshot_path = f'./screenshot/{index}_2.png'
-            
-            # 等待新页面加载
-            time.sleep(1)
-            
-            # 保存第二张截图
-            driver.save_screenshot(temp_screenshot_path)
-            
-            # 处理第二张图片
-            with Image.open(temp_screenshot_path) as img:
-                resized_img = img.resize((1179, 2490), Image.Resampling.LANCZOS)
-                cropped_img = resized_img.crop((0, 195, 1179, 2485))
-                
-                final_img = Image.new('RGB', (1179, 2556), 'white')
-                final_img.paste(top_img, (0, 0))
-                final_img.paste(cropped_img, (0, 165))
-                final_img.paste(bottom_img, (0, 2455))
-                
-                final_img.save(final_screenshot_path, quality=95)
+            # 替换返回图标
+            replace_back_icon(final_screenshot_path, back_icon)
             
             # 删除临时文件
             os.remove(temp_screenshot_path)
-            print(f"第二张截图已保存: {final_screenshot_path}")
+            print(f"第一张截图已保存并处理: {final_screenshot_path}")
+            
+            # 检查并点击下一页按钮
+            if check_and_click_next_button(driver):
+                print("检测到下一页按钮，正在截取第二张图...")
+                
+                # 处理第二张截图
+                temp_screenshot_path = f'./screenshot/temp_{index}_2.png'
+                final_screenshot_path = f'./screenshot/{index}_2.png'
+                
+                # 等待新页面加载
+                time.sleep(1)
+                
+                # 保存第二张截图
+                driver.save_screenshot(temp_screenshot_path)
+                
+                # 处理第二张图片
+                with Image.open(temp_screenshot_path) as img:
+                    resized_img = img.resize((1179, 2490), Image.Resampling.LANCZOS)
+                    cropped_img = resized_img.crop((0, 195, 1179, 2485))
+                    
+                    final_img = Image.new('RGB', (1179, 2556), 'white')
+                    final_img.paste(top_img, (0, 0))
+                    final_img.paste(cropped_img, (0, 165))
+                    final_img.paste(bottom_img, (0, 2455))
+                    
+                    final_img.save(final_screenshot_path, quality=95)
+                    
+                    # 替换返回图标
+                    replace_back_icon(final_screenshot_path, back_icon)
+                    
+                    # 删除临时文件
+                    os.remove(temp_screenshot_path)
+                    print(f"第二张截图已保存并处理: {final_screenshot_path}")
         
     except Exception as e:
         print(f"处理URL时出错: {url}")
@@ -277,15 +399,16 @@ def capture_screenshots():
         print("URL文件为空或不存在")
         return
     
-    # 预先加载顶部和底部图片
+    # 预先加载所有需要的图片资源
     try:
         top_img = Image.open("src/top.jpg")
         bottom_img = Image.open("src/bottom.jpg")
+        back_icon = Image.open("src/back.png")
         if top_img.size != (1179, 165) or bottom_img.size != (1179, 101):
             print("错误：顶部或底部图片尺寸不正确")
             return
     except Exception as e:
-        print(f"加载顶部或底部图片失败: {str(e)}")
+        print(f"加载图片资源失败: {str(e)}")
         return
     
     # 设置浏览器
@@ -298,7 +421,7 @@ def capture_screenshots():
         
         # 遍历URL并截图
         for i, url in enumerate(urls, 1):
-            process_single_url(driver, url, i, top_img, bottom_img)
+            process_single_url(driver, url, i, top_img, bottom_img, back_icon)
         
         # 只有在没有使用历史配置时才询问是否保存
         if not use_previous:
@@ -310,6 +433,7 @@ def capture_screenshots():
         # 关闭图片
         top_img.close()
         bottom_img.close()
+        back_icon.close()
 
 def prepare_bottom_image():
     """准备底部图片资源"""
@@ -458,9 +582,10 @@ def prepare_top_image():
         return False
 
 if __name__ == "__main__":
-    # 准备资源
+    # 准备所有资源
     prepare_top_image()
     prepare_bottom_image()
+    prepare_back_icon()
     
     # 开始主程序
     capture_screenshots()

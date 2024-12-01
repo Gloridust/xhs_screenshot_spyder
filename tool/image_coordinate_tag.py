@@ -8,6 +8,8 @@ class CoordinateMarker:
         self.start_x = -1
         self.start_y = -1
         self.image = None
+        self.original_size = None
+        self.scale = 1.0
         self.window_name = "Image Coordinate Marker"
         self.coordinates = []
         
@@ -18,7 +20,6 @@ class CoordinateMarker:
             
         elif event == cv2.EVENT_MOUSEMOVE:
             if self.drawing:
-                # 创建图像副本以绘制临时矩形
                 img_copy = self.image.copy()
                 cv2.rectangle(img_copy, (self.start_x, self.start_y), (x, y), (0, 255, 0), 2)
                 cv2.imshow(self.window_name, img_copy)
@@ -28,13 +29,22 @@ class CoordinateMarker:
             # 记录坐标，确保左上和右下的顺序正确
             x1, x2 = min(self.start_x, x), max(self.start_x, x)
             y1, y2 = min(self.start_y, y), max(self.start_y, y)
-            self.coordinates.append((x1, y1, x2, y2))
-            # 在图像上绘制最终的矩形
+            
+            # 转换回原始图片的坐标
+            orig_x1 = int(x1 / self.scale)
+            orig_y1 = int(y1 / self.scale)
+            orig_x2 = int(x2 / self.scale)
+            orig_y2 = int(y2 / self.scale)
+            
+            self.coordinates.append((orig_x1, orig_y1, orig_x2, orig_y2))
+            
+            # 在显示图像上绘制矩形
             cv2.rectangle(self.image, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.imshow(self.window_name, self.image)
             
-            # 打印坐标
-            print(f"选择的区域坐标: ({x1}, {y1}) -> ({x2}, {y2})")
+            # 打印原始图片的坐标
+            print(f"选择的区域坐标（原始尺寸）: ({orig_x1}, {orig_y1}) -> ({orig_x2}, {orig_y2})")
+            print(f"区域大小: {orig_x2-orig_x1}×{orig_y2-orig_y1} 像素")
     
     def mark_image(self, image_path):
         # 读取图像
@@ -43,12 +53,23 @@ class CoordinateMarker:
             print(f"无法读取图片: {image_path}")
             return None
             
+        # 保存原始尺寸
+        self.original_size = self.image.shape[:2]
+        
         # 调整图像大小以适应屏幕
         screen_height = 1080  # 假设屏幕高度为1080
         if self.image.shape[0] > screen_height:
-            scale = screen_height / self.image.shape[0]
-            new_width = int(self.image.shape[1] * scale)
+            self.scale = screen_height / self.image.shape[0]
+            new_width = int(self.image.shape[1] * self.scale)
             self.image = cv2.resize(self.image, (new_width, screen_height))
+        else:
+            self.scale = 1.0
+            
+        # 打印图片信息
+        print(f"\n图片信息:")
+        print(f"原始尺寸: {self.original_size[1]}×{self.original_size[0]}")
+        print(f"显示尺寸: {self.image.shape[1]}×{self.image.shape[0]}")
+        print(f"缩放比例: {self.scale:.3f}")
             
         # 创建窗口和鼠标回调
         cv2.namedWindow(self.window_name)
@@ -56,7 +77,7 @@ class CoordinateMarker:
         
         # 显示图像
         cv2.imshow(self.window_name, self.image)
-        print(f"正在标记图片: {image_path}")
+        print(f"\n正在标记图片: {image_path}")
         print("请用鼠标拖动选择区域，按 'q' 完成当前图片标记")
         
         # 等待按键
