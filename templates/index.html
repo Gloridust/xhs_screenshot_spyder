@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>小红书截图工具</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #ff2442;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        #output {
+            background-color: #1e1e1e;
+            color: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Consolas', monospace;
+            margin: 20px 0;
+            line-height: 1.5;
+        }
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .primary-btn {
+            background-color: #ff2442;
+            color: white;
+        }
+        .secondary-btn {
+            background-color: #e0e0e0;
+            color: #333;
+        }
+        .danger-btn {
+            background-color: #dc3545;
+            color: white;
+        }
+        .checkbox-group {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .status {
+            margin-top: 10px;
+            font-weight: bold;
+            color: #666;
+            text-align: center;
+        }
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            resize: vertical;
+            font-family: 'Consolas', monospace;
+        }
+        .success {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        
+        .main-container {
+            display: grid;
+            grid-template-columns: minmax(600px, 2fr) 1fr;
+            gap: 20px;
+            max-width: 2400px;
+            margin: 0 auto;
+            padding: 10px;
+        }
+        
+        .control-panel {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            min-width: 600px;
+        }
+        
+        .preview-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .screenshots-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            padding: 15px;
+        }
+        
+        .screenshot-item {
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.2s;
+            aspect-ratio: 1179/2556;
+            overflow: hidden;
+        }
+        
+        .screenshot-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .screenshot-item:hover {
+            transform: scale(1.05);
+        }
+        
+        .screenshot-filename {
+            font-size: 12px;
+            text-align: center;
+            margin-top: 5px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+            margin: auto;
+            margin-top: 2%;
+        }
+        
+        .modal-content img {
+            max-width: 100%;
+            max-height: 90vh;
+        }
+        
+        .close-modal {
+            position: absolute;
+            top: -30px;
+            right: 0;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        
+        @media (max-width: 1200px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        #output {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Consolas', monospace;
+            padding: 15px;
+            border-radius: 5px;
+            height: 200px;
+            overflow-y: auto;
+            margin-top: 20px;
+            line-height: 1.4;
+        }
+        
+        .loading-placeholder {
+            background-color: #f0f0f0;
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 5px;
+            color: #666;
+        }
+        
+        @media (min-width: 1800px) {
+            .main-container {
+                grid-template-columns: minmax(600px, 1fr) 1fr;
+                max-width: 2400px;
+            }
+            
+            .control-panel {
+                padding: 30px 40px;
+            }
+            
+            textarea {
+                height: 200px;
+            }
+            
+            #output {
+                height: 300px;
+            }
+            
+            .button-group {
+                gap: 15px;
+            }
+            
+            button {
+                padding: 12px 25px;
+                font-size: 16px;
+            }
+        }
+        
+        .latest-screenshot {
+            width: 100%;
+            max-width: 800px;
+            aspect-ratio: 1179/2556;
+            margin: 0 auto;
+            position: relative;
+        }
+        
+        .latest-screenshot img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        @media (min-width: 2000px) {
+            .main-container {
+                padding: 20px 40px;
+            }
+            
+            .control-panel {
+                padding: 40px;
+            }
+            
+            textarea {
+                height: 250px;
+                font-size: 16px;
+            }
+            
+            #output {
+                height: 400px;
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="control-panel">
+            <h1>小红书截图工具</h1>
+            
+            <div class="controls">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="useConfig" {% if not has_config %}disabled{% endif %} checked>
+                    <label for="useConfig">使用上次浏览器配置</label>
+                </div>
+                
+                <textarea id="urlList" placeholder="请输入URL列表，每行一个URL"></textarea>
+                
+                <div class="button-group">
+                    <button class="primary-btn" onclick="startProcess()">开始处理</button>
+                    <button class="secondary-btn" onclick="stopProcess()">停止处理</button>
+                    <button class="secondary-btn" onclick="prepareResources()">准备资源</button>
+                    <button class="secondary-btn" onclick="openOutputFolder()">打开输出文件夹</button>
+                    <button class="danger-btn" onclick="clearWorkspace()">清空工作区</button>
+                </div>
+            </div>
+            
+            <div class="status" id="status"></div>
+            <div id="output"></div>
+        </div>
+        
+        <div class="preview-panel">
+            <h2>最新预览</h2>
+            <div class="latest-screenshot" id="latestScreenshot">
+                <!-- 最新截图将在这里显示 -->
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal" id="previewModal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <img id="modalImage" src="" alt="预览图">
+        </div>
+    </div>
+
+    <script>
+        let processing = false;
+        
+        function updateOutput() {
+            if (!processing) return;
+            
+            fetch('/get_output')
+                .then(response => response.json())
+                .then(data => {
+                    const output = document.getElementById('output');
+                    data.messages.forEach(msg => {
+                        if (msg.includes("✨ 任务完成")) {
+                            output.innerHTML += `<span class="success">${msg}</span><br>`;
+                            updateScreenshots();
+                        } else {
+                            output.innerHTML += msg + '<br>';
+                        }
+                    });
+                    output.scrollTop = output.scrollHeight;
+                    
+                    processing = data.processing;
+                    if (processing) {
+                        setTimeout(updateOutput, 1000);
+                    }
+                });
+        }
+        
+        function prepareResources() {
+            fetch('/prepare_resources', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                const output = document.getElementById('output');
+                data.messages.forEach(msg => {
+                    output.innerHTML += msg + '<br>';
+                });
+                output.scrollTop = output.scrollHeight;
+            });
+        }
+        
+        function startProcess() {
+            const useConfig = document.getElementById('useConfig').checked;
+            const urls = document.getElementById('urlList').value;
+            
+            fetch('/start_process', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    use_previous: useConfig,
+                    urls: urls
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    processing = true;
+                    updateOutput();
+                }
+                document.getElementById('status').textContent = data.message;
+            });
+        }
+        
+        function stopProcess() {
+            fetch('/stop_process', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                processing = false;
+                document.getElementById('status').textContent = data.message;
+            });
+        }
+        
+        function openOutputFolder() {
+            fetch('/open_output_folder', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('status').textContent = data.message;
+            });
+        }
+        
+        function clearWorkspace() {
+            if (confirm('确定要清空工作区吗？这将删除所有生成的截图。')) {
+                fetch('/clear_workspace', {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('status').textContent = data.message;
+                });
+            }
+        }
+        
+        function updateScreenshots() {
+            fetch('/get_screenshots')
+                .then(response => response.json())
+                .then(screenshots => {
+                    const latestScreenshot = document.getElementById('latestScreenshot');
+                    if (screenshots.length > 0) {
+                        // 获取最新的截图
+                        const latest = screenshots[screenshots.length - 1];
+                        
+                        // 创建图片加载Promise
+                        const img = new Image();
+                        img.onload = () => {
+                            latestScreenshot.innerHTML = `
+                                <img src="${latest.path}" alt="${latest.filename}" 
+                                     onclick="showPreview('${latest.path}')">
+                                <div class="screenshot-filename">${latest.filename}</div>
+                            `;
+                        };
+                        img.src = latest.path;
+                    } else {
+                        latestScreenshot.innerHTML = '<div class="no-screenshot">暂无截图</div>';
+                    }
+                });
+        }
+        
+        function showPreview(imagePath) {
+            const modal = document.getElementById('previewModal');
+            const modalImg = document.getElementById('modalImage');
+            modal.style.display = 'flex';
+            modalImg.src = imagePath;
+        }
+        
+        function closeModal() {
+            document.getElementById('previewModal').style.display = 'none';
+        }
+        
+        setInterval(updateScreenshots, 2000);
+        
+        document.addEventListener('DOMContentLoaded', updateScreenshots);
+    </script>
+</body>
+</html> 

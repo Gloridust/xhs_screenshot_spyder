@@ -145,7 +145,7 @@ def check_and_click_next_button(driver):
             
             # 先滚动到按钮位置
             driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", button)
-            time.sleep(0.5)
+            time.sleep(0.2)
             
             # 获取按钮的位置和大小
             location = button.location
@@ -158,7 +158,7 @@ def check_and_click_next_button(driver):
             # 模拟鼠标移动到按钮中心
             actions.move_to_element_with_offset(button, size['width']/2, size['height']/2)
             actions.perform()
-            time.sleep(0.5)
+            time.sleep(0.2)
             
             # 尝试点击按钮中心
             try:
@@ -178,7 +178,7 @@ def check_and_click_next_button(driver):
                 actions.move_to_element_with_offset(button, size['width']/2, size['height']/2).click().perform()
             
             # 等待页面加载
-            time.sleep(1)
+            time.sleep(0.2)
             print("成功点击下一页按钮")
             return True
             
@@ -273,7 +273,7 @@ def process_single_url(driver, url, index, top_img, bottom_img, back_icon):
         driver.get(url)
         
         # 等待页面加载完成
-        time.sleep(2)
+        time.sleep(1)
         
         # 处理第一张截图
         temp_screenshot_path = f'./screenshot/temp_{index}_1.png'
@@ -316,7 +316,7 @@ def process_single_url(driver, url, index, top_img, bottom_img, back_icon):
                 final_screenshot_path = f'./screenshot/{index}_2.png'
                 
                 # 等待新页面加载
-                time.sleep(1)
+                time.sleep(0.2)
                 
                 # 保存第二张截图
                 driver.save_screenshot(temp_screenshot_path)
