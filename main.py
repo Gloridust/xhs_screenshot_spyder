@@ -56,32 +56,61 @@ def save_browser_session(driver):
     try:
         # 确保目录存在
         if os.path.exists(USER_DATA_DIR):
-            shutil.rmtree(USER_DATA_DIR)
+            try:
+                shutil.rmtree(USER_DATA_DIR)
+                time.sleep(0.5)  # 等待文件系统操作完成
+            except Exception as e:
+                print(f"删除旧配置失败: {str(e)}")
+                return False
         
         # 获取源目录
         chrome_temp_dir = driver.capabilities['chrome']['userDataDir']
+        if not os.path.exists(chrome_temp_dir):
+            print(f"找不到浏览器配置目录: {chrome_temp_dir}")
+            return False
+            
+        print(f"正在保存浏览器配置...")
+        print(f"源目录: {chrome_temp_dir}")
+        print(f"目标目录: {USER_DATA_DIR}")
         
-        def ignore_files(dir, files):
-            """忽略特定文件"""
-            return [
-                f for f in files
-                if f.startswith('Singleton') or  # 忽略 Singleton 相关文件
-                f.endswith('.lock')              # 忽略锁文件
-            ]
+        # 先列出所有要复制的文件
+        files_to_copy = []
+        for root, dirs, files in os.walk(chrome_temp_dir):
+            for file in files:
+                if (not file.startswith('Singleton') and 
+                    not file.endswith('.lock')):
+                    src_path = os.path.join(root, file)
+                    dst_path = os.path.join(
+                        USER_DATA_DIR,
+                        os.path.relpath(src_path, chrome_temp_dir)
+                    )
+                    files_to_copy.append((src_path, dst_path))
         
-        # 使用 ignore 参数复制目录
-        shutil.copytree(
-            chrome_temp_dir, 
-            USER_DATA_DIR, 
-            ignore=ignore_files,
-            dirs_exist_ok=True
-        )
+        # 创建目标目录结构
+        os.makedirs(USER_DATA_DIR, exist_ok=True)
+        for _, dst_path in files_to_copy:
+            os.makedirs(os.path.dirname(dst_path), exist_ok=True)
         
-        print("浏览器会话信息已保存")
-        return True
+        # 复制文件
+        success_count = 0
+        for src_path, dst_path in files_to_copy:
+            try:
+                if os.path.exists(src_path):  # 再次检查文件是否存在
+                    shutil.copy2(src_path, dst_path)
+                    success_count += 1
+            except Exception as e:
+                print(f"复制文件失败 {src_path}: {str(e)}")
         
+        # 验证配置是否保存成功
+        if success_count > 0:
+            print(f"浏览器配置保存成功 (复制了 {success_count} 个文件)")
+            return True
+        else:
+            print("浏览器配置保存失败：没有成功复制任何文件")
+            return False
+            
     except Exception as e:
-        print(f"保存浏览器会话信息失败: {str(e)}")
+        print(f"保存浏览器配置失败: {str(e)}")
         # 如果保存失败，尝试清理已创建的目录
         if os.path.exists(USER_DATA_DIR):
             try:
@@ -282,7 +311,7 @@ def process_single_url(driver, url, index, top_img, bottom_img, back_icon):
         
         # 处理第一张图片
         with Image.open(temp_screenshot_path) as img:
-            # 调整主截��尺寸
+            # 调整主截尺寸
             resized_img = img.resize((1179, 2490), Image.Resampling.LANCZOS)
             # 裁切时去掉上面195px(180+15)和下面5px
             cropped_img = resized_img.crop((0, 195, 1179, 2485))
@@ -484,7 +513,7 @@ def prepare_top_image():
         # 检查文件权限
         if not os.access(top_path, os.W_OK):
             print(f"错误：没有文件的写入权限 ({top_path})")
-            print("尝试修改文件权限...")
+            print("尝试修改文件限...")
             try:
                 # 尝试修改文件权限为可写
                 os.chmod(top_path, 0o666)
