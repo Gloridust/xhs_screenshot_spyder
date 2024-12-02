@@ -19,6 +19,8 @@ import socket
 import requests
 from urllib.parse import urljoin
 import json
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 
 app = Flask(__name__)
 CORS(app)  # 启用 CORS
@@ -28,6 +30,7 @@ output_queue = Queue()
 current_driver = None
 processing = False
 login_confirmed = Event()
+chrome_service = None
 
 # 添加资源URL配置
 RESOURCE_BASE_URL = "https://github.com/Gloridust/xhs_screenshot_spyder/blob/main/src/"
@@ -129,6 +132,57 @@ def check_resources():
     
     return True, "资源文件检查通过"
 
+def init_chrome_driver():
+    """初始化 ChromeDriver"""
+    global chrome_service
+    try:
+        output_queue.put("开始初始化浏览器环境...")
+        output_queue.put("1. 检查 Chrome 浏览器...")
+        
+        # 使用更简单的初始化方式
+        try:
+            driver_path = ChromeDriverManager().install()
+        except Exception as e:
+            # 如果自动安装失败，尝试使用系统中已有的 ChromeDriver
+            output_queue.put(f"自动下载 ChromeDriver 失败: {str(e)}")
+            output_queue.put("尝试查找系统中已安装的 ChromeDriver...")
+            
+            # 在常见位置查找 ChromeDriver
+            possible_paths = [
+                "chromedriver",  # PATH 中的 ChromeDriver
+                "/usr/local/bin/chromedriver",  # macOS/Linux 常见位置
+                "C:\\Program Files\\ChromeDriver\\chromedriver.exe",  # Windows 常见位置
+                "./chromedriver.exe",  # 当前目录
+            ]
+            
+            driver_path = None
+            for path in possible_paths:
+                if os.path.exists(path):
+                    driver_path = path
+                    break
+            
+            if not driver_path:
+                raise Exception("未找到可用的 ChromeDriver")
+        
+        output_queue.put("2. 配置 ChromeDriver 服务...")
+        chrome_service = Service(driver_path)
+        
+        output_queue.put("✓ 浏览器环境初始化完成")
+        return True
+        
+    except Exception as e:
+        error_msg = f"ChromeDriver 初始化失败: {str(e)}"
+        output_queue.put(error_msg)
+        output_queue.put("\n请检查:")
+        output_queue.put("1. Chrome 浏览器是否正确安装")
+        output_queue.put("2. 网络连接是否正常")
+        output_queue.put("3. 是否有足够的磁盘空间")
+        output_queue.put("\n如果问题持续，请手动下载 ChromeDriver:")
+        output_queue.put("1. 访问 https://chromedriver.chromium.org/downloads")
+        output_queue.put("2. 下载与您的 Chrome 浏览器版本匹配的 ChromeDriver")
+        output_queue.put("3. 解压并将 chromedriver 放在程序所在目录")
+        return False
+
 @app.route('/')
 def index():
     # 检查是否存在浏览器配置
@@ -138,13 +192,22 @@ def index():
 @app.route('/start_process', methods=['POST'])
 def start_process():
     """开始处理截图"""
-    global current_driver, processing
+    global current_driver, processing, chrome_service
     
     if processing:
         return jsonify({
             'success': False,
             'message': '已有任务正在进行中'
         })
+    
+    # 检查 ChromeDriver 是否已准备好
+    if chrome_service is None:
+        output_queue.put("ChromeDriver 未就绪，正在重新初始化...")
+        if not init_chrome_driver():
+            return jsonify({
+                'success': False,
+                'message': 'ChromeDriver 初始化失败，请查看控制台输出'
+            })
     
     use_previous = request.json.get('use_previous', False)
     urls = request.json.get('urls', '').strip().split('\n')
@@ -171,8 +234,9 @@ def start_process():
                     output_queue.put(f"加载图片资源失败: {str(e)}")
                     return
                 
-                # 设置浏览器
-                current_driver = setup_browser(use_previous)
+                # 设置浏览器，使用全局的 chrome_service
+                current_driver = setup_browser(use_previous, chrome_service)
+                output_queue.put("浏览器已启动")
                 
                 # 如果不使用上次配置，需要等待登录
                 if not use_previous:
@@ -186,6 +250,9 @@ def start_process():
                             return
                     output_queue.put("已确认登录，开始处理...")
                 
+                # 更新状态为正在截图
+                output_queue.put("状态更新: 正在截图中...")
+                
                 # 遍历URL并截图
                 for i, url in enumerate(urls, 1):
                     process_single_url(current_driver, url, i, top_img, bottom_img, back_icon)
@@ -194,6 +261,8 @@ def start_process():
                 save_browser_session(current_driver)
                 output_queue.put("已保存浏览器配置，下次可以直接使用")
                 
+                # 更新状态为已完成
+                output_queue.put("状态更新: 已完成")
                 output_queue.put("\n✨ 任务完成！所有截图已保存。")
                     
             finally:
@@ -208,7 +277,7 @@ def start_process():
     
     return jsonify({
         'success': True,
-        'message': '任务已启动'
+        'message': '正在启动浏览器...'
     })
 
 @app.route('/confirm_login', methods=['POST'])
@@ -428,14 +497,19 @@ if __name__ == '__main__':
     try:
         # 查找可用端口
         port = find_available_port()
-        print(f"使用端口: {port}")
+        output_queue.put(f"使用端口: {port}")
+        
+        # 在启动浏览器前初始化 ChromeDriver
+        init_success = init_chrome_driver()
+        if not init_success:
+            output_queue.put("⚠️ ChromeDriver 初始化失败，程序可能无法正常运行")
         
         # 启动浏览器（只启动一次）
         url = f'http://127.0.0.1:{port}'
-        webbrowser.open_new(url)  # 使用 open_new 而不是 open
+        webbrowser.open_new(url)
         
         # 启动Flask应用
-        app.run(debug=False, port=port, host='0.0.0.0')  # 关闭debug模式
+        app.run(debug=False, port=port, host='0.0.0.0')
     except Exception as e:
-        print(f"启动服务器失败: {str(e)}")
+        output_queue.put(f"启动服务器失败: {str(e)}")
         input("按回车键退出...")

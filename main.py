@@ -23,7 +23,7 @@ def read_urls(file_path='url.txt'):
         urls = [line.strip() for line in f.readlines() if line.strip()]
     return urls
 
-def setup_browser(use_previous_session=False):
+def setup_browser(use_previous_session=False, service=None):
     """设置浏览器配置"""
     chrome_options = Options()
     
@@ -43,8 +43,8 @@ def setup_browser(use_previous_session=False):
     chrome_options.add_experimental_option("mobileEmulation", mobile_emulation)
     chrome_options.add_argument('--disable-blink-features=AutomationControlled')
     
-    # 创建浏览器实例
-    driver = webdriver.Chrome(options=chrome_options)
+    # 创建浏览器实例，使用提供的 service
+    driver = webdriver.Chrome(service=service, options=chrome_options) if service else webdriver.Chrome(options=chrome_options)
     driver.set_window_size(target_width, target_height)
     
     # 如果使用上次会话，加载cookies
@@ -648,7 +648,7 @@ def prepare_top_image():
                 
                 # 如果临时文件保存成功，则替换原文件
                 shutil.move(temp_path, top_path)
-                print("顶部图片已调整到正确尺寸")
+                print("顶部图片已调整到��确尺寸")
                 return True
             except Exception as e:
                 print(f"保存图片失败: {str(e)}")

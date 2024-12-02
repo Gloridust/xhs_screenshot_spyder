@@ -375,21 +375,29 @@
                 .then(data => {
                     const output = document.getElementById('output');
                     const confirmBtn = document.getElementById('confirmLoginBtn');
+                    const status = document.getElementById('status');
                     
                     data.messages.forEach(msg => {
-                        if (msg.includes("请在浏览器中完成登录")) {
-                            confirmBtn.style.display = 'inline-block';
-                        } else if (msg.includes("已确认登录")) {
-                            confirmBtn.style.display = 'none';
+                        // 处理状态更新
+                        if (msg.startsWith("状态更新: ")) {
+                            status.textContent = msg.replace("状态更新: ", "");
+                            return;
                         }
                         
-                        if (msg.includes("✨ 任务完成")) {
+                        if (msg.includes("请在浏览器中完成登录")) {
+                            confirmBtn.style.display = 'inline-block';
+                            status.textContent = "等待登录...";
+                        } else if (msg.includes("已确认登录")) {
+                            confirmBtn.style.display = 'none';
+                        } else if (msg.includes("✨ 任务完成")) {
                             output.innerHTML += `<span class="success">${msg}</span><br>`;
                             updateScreenshots();
                             checkConfig();
+                            status.textContent = "已完成";
                         } else if (msg.includes("⚠️ 任务已停止")) {
                             output.innerHTML += `<span class="warning">${msg}</span><br>`;
                             confirmBtn.style.display = 'none';
+                            status.textContent = "已停止";
                         } else {
                             output.innerHTML += msg + '<br>';
                         }
@@ -601,6 +609,7 @@
                 checkbox.checked = savedState === 'true';
             }
             updateScreenshots();
+            checkInitialOutput();
         });
         
         function confirmLogin() {
@@ -647,6 +656,29 @@
             // 保存用户的选择到 localStorage
             localStorage.setItem('useConfigState', e.target.checked);
         });
+        
+        function checkInitialOutput() {
+            fetch('/get_output')
+                .then(response => response.json())
+                .then(data => {
+                    const output = document.getElementById('output');
+                    data.messages.forEach(msg => {
+                        if (msg.includes("✓")) {
+                            output.innerHTML += `<span class="success">${msg}</span><br>`;
+                        } else if (msg.includes("⚠️")) {
+                            output.innerHTML += `<span class="warning">${msg}</span><br>`;
+                        } else {
+                            output.innerHTML += msg + '<br>';
+                        }
+                    });
+                    output.scrollTop = output.scrollHeight;
+                    
+                    // 如果还有初始化消息，继续检查
+                    if (data.messages.length > 0) {
+                        setTimeout(checkInitialOutput, 500);
+                    }
+                });
+        }
     </script>
 </body>
 </html> 
