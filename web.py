@@ -30,7 +30,7 @@ processing = False
 login_confirmed = Event()
 
 # 添加资源URL配置
-RESOURCE_BASE_URL = "https://raw.githubusercontent.com/Gloridust/xhs_screenshot_spyder/main/src/"
+RESOURCE_BASE_URL = "https://github.com/Gloridust/xhs_screenshot_spyder/blob/main/src/"
 REQUIRED_RESOURCES = {
     "top.jpg": "top.jpg",
     "bottom.jpg": "bottom.jpg",
