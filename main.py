@@ -54,36 +54,53 @@ def setup_browser(use_previous_session=False):
 def save_browser_session(driver):
     """保存浏览器会话信息"""
     try:
+        # 使用绝对路径
+        user_data_dir = os.path.abspath(USER_DATA_DIR)
+        
         # 确保目录存在
-        if os.path.exists(USER_DATA_DIR):
-            shutil.rmtree(USER_DATA_DIR)
+        if os.path.exists(user_data_dir):
+            try:
+                shutil.rmtree(user_data_dir)
+            except PermissionError:
+                print("无法删除旧的配置目录，可能是权限问题或文件被占用")
+                return False
         
         # 获取源目录
         chrome_temp_dir = driver.capabilities['chrome']['userDataDir']
+        print(f"正在保存浏览器配置... \n源目录: {chrome_temp_dir}\n目标目录: {user_data_dir}")
         
         def ignore_files(dir, files):
             """忽略特定文件"""
             return [
                 f for f in files
-                if f.startswith('Singleton') or  # 忽略 Singleton 相关文件
-                f == 'RunningChromeVersion' or   # 忽略版本文件
-                f.endswith('.sock') or           # 忽略 socket 文件
-                f.endswith('.lock')              # 忽略锁文件
+                if f.startswith('Singleton') or
+                f == 'RunningChromeVersion' or
+                f.endswith('.sock') or
+                f.endswith('.lock') or
+                f.endswith('.log') or  # 添加日志文件
+                f.endswith('.tmp')     # 添加临时文件
             ]
         
-        # 使用 ignore 参数复制目录
-        shutil.copytree(
-            chrome_temp_dir, 
-            USER_DATA_DIR, 
-            ignore=ignore_files,
-            dirs_exist_ok=True
-        )
-        
-        print("浏览器会话信息已保存")
-        return True
-        
+        try:
+            # 使用 ignore 参数复制目录
+            shutil.copytree(
+                chrome_temp_dir, 
+                user_data_dir, 
+                ignore=ignore_files,
+                dirs_exist_ok=True
+            )
+            print("浏览器配置已保存")
+            return True
+            
+        except PermissionError:
+            print("保存配置时遇到权限错误，请尝试以管理员身份运行程序")
+            return False
+        except Exception as e:
+            print(f"复制配置文件时出错: {str(e)}")
+            return False
+            
     except Exception as e:
-        print(f"保存浏览器会话信息失败: {str(e)}")
+        print(f"保存浏览器配置失败: {str(e)}")
         # 如果保存失败，尝试清理已创建的目录
         if os.path.exists(USER_DATA_DIR):
             try:
@@ -284,7 +301,7 @@ def process_single_url(driver, url, index, top_img, bottom_img, back_icon):
         
         # 处理第一张图片
         with Image.open(temp_screenshot_path) as img:
-            # 调整主截��尺寸
+            # 调整主截尺寸
             resized_img = img.resize((1179, 2490), Image.Resampling.LANCZOS)
             # 裁切时去掉上面195px(180+15)和下面5px
             cropped_img = resized_img.crop((0, 195, 1179, 2485))
