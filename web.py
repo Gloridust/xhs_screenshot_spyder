@@ -315,6 +315,43 @@ def check_config():
         'has_config': has_config
     })
 
+@app.route('/stop_process', methods=['POST'])
+def stop_process():
+    """停止当前处理"""
+    global current_driver, processing
+    try:
+        # 设置停止标志
+        processing = False
+        
+        # 清除登录确认状态
+        login_confirmed.clear()
+        
+        # 关闭浏览器
+        if current_driver:
+            try:
+                current_driver.quit()
+            except Exception as e:
+                print(f"关闭浏览器时出错: {str(e)}")
+            finally:
+                current_driver = None
+        
+        # 清理输出队列
+        while not output_queue.empty():
+            output_queue.get()
+            
+        # 添加停止消息到输出
+        output_queue.put("\n⚠️ 任务已停止")
+        
+        return jsonify({
+            'success': True,
+            'message': '已停止处理'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'停止处理时出错: {str(e)}'
+        })
+
 if __name__ == '__main__':
     try:
         # 查找可用端口

@@ -306,6 +306,9 @@
             color: #666;
             margin-top: 5px;
         }
+        .warning {
+            color: #ffc107;
+        }
     </style>
 </head>
 <body>
@@ -373,6 +376,9 @@
                             output.innerHTML += `<span class="success">${msg}</span><br>`;
                             updateScreenshots();
                             checkConfig();
+                        } else if (msg.includes("⚠️ 任务已停止")) {
+                            output.innerHTML += `<span class="warning">${msg}</span><br>`;
+                            confirmBtn.style.display = 'none';
                         } else {
                             output.innerHTML += msg + '<br>';
                         }
@@ -431,6 +437,10 @@
         }
         
         function stopProcess() {
+            const stopBtn = document.querySelector('button.secondary-btn');
+            stopBtn.disabled = true;
+            stopBtn.textContent = '正在停止...';
+            
             fetch('/stop_process', {
                 method: 'POST'
             })
@@ -438,6 +448,12 @@
             .then(data => {
                 processing = false;
                 document.getElementById('status').textContent = data.message;
+            })
+            .finally(() => {
+                stopBtn.disabled = false;
+                stopBtn.textContent = '停止处理';
+                // 重新检查配置状态
+                setTimeout(checkConfig, 1000);
             });
         }
         

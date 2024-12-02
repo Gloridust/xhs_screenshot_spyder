@@ -156,7 +156,7 @@ def check_and_click_next_button(driver):
             
             # 先滚动到按钮位置
             driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", button)
-            time.sleep(0.2)
+            time.sleep(0.1)
             
             # 获取按钮的位置和大小
             location = button.location
@@ -277,6 +277,111 @@ def replace_back_icon(image_path, back_icon):
         print(f"替换返回图标时出错: {str(e)}")
         return False
 
+def check_and_click_ok_button(driver):
+    """检查并点击'好的'按钮"""
+    try:
+        print("检查是否存在'好的'按钮...")
+        
+        # 使用更精确的 XPath 定位提示文本和按钮
+        try:
+            # 先找到包含"鼠标悬停查看 Ta 的信息"的元素
+            hover_text = driver.find_element(By.XPATH, "//span[contains(text(), '鼠标悬停查看 Ta 的信息')]")
+            print("找到提示文本")
+            
+            # 然后在其中找到"好的"按钮
+            ok_button = hover_text.find_element(By.XPATH, ".//span[contains(text(), '好的')]")
+            print("找到'好的'按钮")
+            
+            if ok_button:
+                # 创建 ActionChains 对象
+                actions = ActionChains(driver)
+                
+                # 先滚动到文本位置
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", hover_text)
+                time.sleep(0.1)
+                
+                # 先移动到提示文本
+                actions.move_to_element(hover_text)
+                actions.perform()
+                time.sleep(0.1)
+                
+                # 获取按钮的位置和大小
+                location = ok_button.location
+                size = ok_button.size
+                
+                # 计算按钮的中心点
+                center_x = location['x'] + size['width'] / 2
+                center_y = location['y'] + size['height'] / 2
+                
+                # 移动到按钮并点击
+                actions.move_to_element(ok_button)
+                actions.click()
+                actions.perform()
+                print("已点击'好的'按钮")
+                
+                # 等待提示消失
+                time.sleep(0.2)
+                
+                # 验证提示是否消失
+                try:
+                    hover_text = driver.find_element(By.XPATH, "//span[contains(text(), '鼠标悬停查看 Ta 的信息')]")
+                    print("警告：提示仍然存在")
+                    return False
+                except NoSuchElementException:
+                    print("提示已成功关闭")
+                    return True
+                    
+            return False
+        except NoSuchElementException:
+            print("未检测到'好的'按钮")
+            return False
+    except Exception as e:
+        print(f"检查'好的'按钮时出错: {str(e)}")
+        return False
+
+def check_and_click_collect_guide(driver):
+    """检查并点击收藏夹引导提示"""
+    try:
+        print("检查是否存在收藏夹引导...")
+        
+        # 检查是否存在提示文本
+        try:
+            collect_text = driver.find_element(By.XPATH, "//span[contains(text(), '可以添加到收藏夹啦')]")
+            if collect_text:
+                print("找到收藏夹引导提示")
+                
+                # 找到需要点击的元素
+                guide_element = driver.find_element(By.XPATH, '//*[@id="note-page-collect-board-guide"]')
+                
+                # 创建 ActionChains 对象
+                actions = ActionChains(driver)
+                
+                # 第一次点击
+                actions.move_to_element(guide_element).click().perform()
+                print("已完成第一次点击")
+                time.sleep(0.1)  # 等待 0.1 秒
+                
+                # 第二次点击
+                actions.move_to_element(guide_element).click().perform()
+                print("已完成第二次点击")
+                
+                # 验证提示是否消失
+                time.sleep(0.1)
+                try:
+                    driver.find_element(By.XPATH, "//span[contains(text(), '可以添加到收藏夹啦')]")
+                    print("警告：收藏夹引导仍然存在")
+                    return False
+                except NoSuchElementException:
+                    print("收藏夹引导已成功关闭")
+                    return True
+                
+        except NoSuchElementException:
+            return False  # 没有找到提示，静默返回
+            
+    except Exception as e:
+        print(f"处理收藏夹引导时出错: {str(e)}")
+        return False
+
 def process_single_url(driver, url, index, top_img, bottom_img, back_icon):
     """处理单个URL的截图"""
     try:
@@ -285,6 +390,15 @@ def process_single_url(driver, url, index, top_img, bottom_img, back_icon):
         
         # 等待页面加载完成
         time.sleep(1)
+        
+        # 检查并点击"好的"按钮
+        check_and_click_ok_button(driver)
+        
+        # 检查并处理收藏夹引导
+        check_and_click_collect_guide(driver)
+        
+        # 等待可能的动画效果结束
+        time.sleep(0.2)
         
         # 处理第一张截图
         temp_screenshot_path = f'./screenshot/temp_{index}_1.png'
