@@ -4,9 +4,11 @@ from PyInstaller.utils.hooks import collect_all
 
 datas = [('build_resources/templates', 'templates')]
 binaries = []
-hiddenimports = ['requests', 'urllib3', 'PIL']
+hiddenimports = ['requests', 'urllib3', 'PIL', 'webdriver_manager', 'selenium']
 datas += collect_data_files('PIL')
 tmp_ret = collect_all('requests')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('webdriver_manager')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
