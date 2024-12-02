@@ -4,3 +4,4 @@ screenshot/
 build/
 dist/
 __pycache__/
+build_resources/

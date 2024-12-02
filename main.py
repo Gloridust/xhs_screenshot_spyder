@@ -54,102 +54,40 @@ def setup_browser(use_previous_session=False):
 def save_browser_session(driver):
     """保存浏览器会话信息"""
     try:
-        # 使用绝对路径
-        user_data_dir = os.path.abspath(USER_DATA_DIR)
+        # 确保目录存在
+        if os.path.exists(USER_DATA_DIR):
+            shutil.rmtree(USER_DATA_DIR)
         
         # 获取源目录
         chrome_temp_dir = driver.capabilities['chrome']['userDataDir']
-        print(f"正在保存浏览器配置... \n源目录: {chrome_temp_dir}\n目标目录: {user_data_dir}")
         
         def ignore_files(dir, files):
-            """忽略特定文件，但保留登录相关文件"""
-            ignore_patterns = [
-                'Singleton',
-                'RunningChromeVersion',
-                '.sock',
-                '.lock',
-                'GPUCache',
-                'Code Cache',
-                '.log',
-                '.tmp',
-                'CrashpadMetrics',
-                'VideoDecodeStats',
-                'heavy_ad_intervention',
-                'optimization_guide_prediction_model',
-                'Safe Browsing',
-                'ShaderCache',
-                'BrowserMetrics',
-                'DownloadMetadata',
-                'Download Service',
-                'GrShaderCache',
-                'AutofillStrikeDatabase',
-                'BudgetDatabase',
-                'QuotaManager-journal',
-                'WebStorage',
-                'blob_storage',
-                'Session Storage'
-            ]
+            """忽略特定文件"""
             return [
                 f for f in files
-                if any(pattern in f for pattern in ignore_patterns)
+                if f.startswith('Singleton') or  # 忽略 Singleton 相关文件
+                f.endswith('.lock')              # 忽略锁文件
             ]
         
-        try:
-            # 确保目标目录存在
-            os.makedirs(user_data_dir, exist_ok=True)
-            
-            # 使用 ignore 参数复制目录
-            shutil.copytree(
-                chrome_temp_dir, 
-                user_data_dir, 
-                ignore=ignore_files,
-                dirs_exist_ok=True
-            )
-            
-            # 复制成功
-            print("浏览器配置已保存")
-            return True
-            
-        except PermissionError:
-            print("保存配置时遇到权限错误，请尝试以管理员身份运行程序")
-            return False
-        except Exception as e:
-            if "另一个程序正在使用此文件" in str(e):
-                # 尝试单独复制重要文件
-                try:
-                    important_files = [
-                        'Cookies',
-                        'Login Data',
-                        'Web Data',
-                        'Preferences',
-                        'Local Storage',
-                    ]
-                    
-                    for root, dirs, files in os.walk(chrome_temp_dir):
-                        for file in files:
-                            if any(imp in file for imp in important_files):
-                                rel_path = os.path.relpath(root, chrome_temp_dir)
-                                src_file = os.path.join(root, file)
-                                dst_dir = os.path.join(user_data_dir, rel_path)
-                                dst_file = os.path.join(dst_dir, file)
-                                
-                                os.makedirs(dst_dir, exist_ok=True)
-                                try:
-                                    shutil.copy2(src_file, dst_file)
-                                except:
-                                    print(f"无法复制文件: {file}")
-                    
-                    print("已保存关键的登录信息")
-                    return True
-                except Exception as e2:
-                    print(f"保存登录信息时出错: {str(e2)}")
-                    return False
-            
-            print(f"复制配置文件时出错: {str(e)}")
-            return False
-            
+        # 使用 ignore 参数复制目录
+        shutil.copytree(
+            chrome_temp_dir, 
+            USER_DATA_DIR, 
+            ignore=ignore_files,
+            dirs_exist_ok=True
+        )
+        
+        print("浏览器会话信息已保存")
+        return True
+        
     except Exception as e:
-        print(f"保存浏览器配置失败: {str(e)}")
+        print(f"保存浏览器会话信息失败: {str(e)}")
+        # 如果保存失败，尝试清理已创建的目录
+        if os.path.exists(USER_DATA_DIR):
+            try:
+                shutil.rmtree(USER_DATA_DIR)
+            except:
+                pass
         return False
 
 def ask_yes_no(question, default=True):
@@ -344,7 +282,7 @@ def process_single_url(driver, url, index, top_img, bottom_img, back_icon):
         
         # 处理第一张图片
         with Image.open(temp_screenshot_path) as img:
-            # 调整主截尺寸
+            # 调整主截��尺寸
             resized_img = img.resize((1179, 2490), Image.Resampling.LANCZOS)
             # 裁切时去掉上面195px(180+15)和下面5px
             cropped_img = resized_img.crop((0, 195, 1179, 2485))

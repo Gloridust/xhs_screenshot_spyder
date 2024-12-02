@@ -102,22 +102,11 @@ def build():
     # 在 Windows 上创建启动脚本
     if platform.system() == 'Windows':
         launcher_script = """@echo off
-echo 正在启动小红书截图工具...
-cd /d "%~dp0"
 start /B XHS_Screenshot.exe
-timeout /t 2 /nobreak
 start http://127.0.0.1:5000
 """
-        launcher_path = "dist/启动程序.bat"
-        with open(launcher_path, "w", encoding="utf-8") as f:
+        with open("dist/启动程序.bat", "w", encoding="utf-8") as f:
             f.write(launcher_script)
-        
-        # 设置启动脚本的执行权限
-        try:
-            import stat
-            os.chmod(launcher_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
-        except:
-            pass
 
 if __name__ == "__main__":
     try:
