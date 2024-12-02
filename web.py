@@ -245,7 +245,7 @@ def start_process():
                     current_driver.get("https://www.xiaohongshu.com")
                     # 等待登录确认信号
                     while not login_confirmed.is_set():
-                        time.sleep(0.25)
+                        time.sleep(0.5)
                         if not processing:  # 如果处理被终止
                             return
                     output_queue.put("已确认登录，开始处理...")
