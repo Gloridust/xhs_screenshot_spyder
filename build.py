@@ -55,9 +55,6 @@ if __name__ == '__main__':
     os.makedirs('screenshot', exist_ok=True)
     os.makedirs('src', exist_ok=True)
     
-    # 检查并下载资源文件
-    web.check_and_download_resources()
-    
     # 启动应用
     web.app.run(host='0.0.0.0', port=web.find_available_port())
 """

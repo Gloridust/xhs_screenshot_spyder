@@ -107,6 +107,28 @@ def check_and_download_resources():
         for filename in missing_resources:
             download_resource(filename)
 
+def check_resources():
+    """检查必要的资源文件"""
+    required_resources = [
+        "src/top.jpg",
+        "src/bottom.jpg",
+        "src/example_real.jpg"
+    ]
+    
+    missing_files = []
+    for file_path in required_resources:
+        if not os.path.exists(file_path):
+            missing_files.append(file_path)
+    
+    if missing_files:
+        error_msg = "缺少必要的资源文件:\n"
+        for file in missing_files:
+            error_msg += f"- {file}\n"
+        error_msg += "\n请确保这些文件存在于正确的位置。"
+        return False, error_msg
+    
+    return True, "资源文件检查通过"
+
 @app.route('/')
 def index():
     # 检查是否存在浏览器配置
@@ -242,19 +264,26 @@ def clear_workspace():
 def prepare_resources():
     """准备资源文件"""
     with OutputCapture():
-        # 首先检查并下载缺失的资源
-        check_and_download_resources()
+        # 检查资源文件
+        success, message = check_resources()
+        if not success:
+            print(message)
+            return jsonify({
+                'success': False,
+                'messages': output_reader()
+            })
         
-        # 然后处理资源
+        # 处理资源
         success = all([
             prepare_top_image(),
             prepare_bottom_image(),
             prepare_back_icon()
         ])
-    return jsonify({
-        'success': success,
-        'messages': output_reader()
-    })
+        
+        return jsonify({
+            'success': success,
+            'messages': output_reader()
+        })
 
 @app.route('/get_output')
 def get_output():
