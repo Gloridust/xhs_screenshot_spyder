@@ -609,7 +609,7 @@ def prepare_bottom_image():
                 
                 # 如果临时文件保存成功，则替换原文件
                 shutil.move(temp_path, bottom_path)
-                print("底部图片已调整到正确尺���")
+                print("底部图片已调整到正确尺寸")
                 return True
             except Exception as e:
                 print(f"保存图片失败: {str(e)}")
