@@ -13,9 +13,6 @@ import shutil
 from select import select
 from selenium.webdriver.common.action_chains import ActionChains
 import json
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-from webdriver_manager.core.utils import ChromeType
 
 # 添加用户数据目录的常量
 USER_DATA_DIR = "./chrome_user_data"
@@ -46,21 +43,8 @@ def setup_browser(use_previous_session=False):
     chrome_options.add_experimental_option("mobileEmulation", mobile_emulation)
     chrome_options.add_argument('--disable-blink-features=AutomationControlled')
     
-    try:
-        # 自动下载和配置 ChromeDriver
-        service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=chrome_options)
-    except Exception as e:
-        print(f"Chrome WebDriver 安装失败，尝试使用系统 Chrome: {str(e)}")
-        try:
-            # 尝试使用系统 Chrome
-            service = Service(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install())
-            driver = webdriver.Chrome(service=service, options=chrome_options)
-        except Exception as e:
-            print(f"浏览器启动失败: {str(e)}")
-            print("请确保系统已安装 Chrome 或 Chromium 浏览器")
-            raise
-    
+    # 创建浏览器实例
+    driver = webdriver.Chrome(options=chrome_options)
     driver.set_window_size(target_width, target_height)
     
     # 如果使用上次会话，加载cookies
