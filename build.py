@@ -75,15 +75,19 @@ def build():
     icon_path = Path("src/icon.ico")
     icon_option = f'--icon "{icon_path}" ' if icon_path.exists() else ''
     
+    # 根据操作系统决定是否使用 windowed 模式
+    import platform
+    windowed_option = '--windowed ' if platform.system() == 'Darwin' else ''  # 仅在 macOS 上使用 windowed
+    
     # PyInstaller 命令
     cmd = (
-        f'pyinstaller --noconfirm --onefile --windowed '
+        f'pyinstaller --noconfirm --onefile {windowed_option}'
         f'--add-data "build_resources/templates:templates" '
         f'--hidden-import requests '
-        f'--hidden-import urllib3 '  # 添加 requests 的依赖
+        f'--hidden-import urllib3 '
         f'--hidden-import PIL '
         f'--collect-data PIL '
-        f'--collect-all requests '  # 确保包含所有 requests 相关文件
+        f'--collect-all requests '
         f'{icon_option}'
         f'--name "XHS_Screenshot" '
         f'build_resources/run.py'
@@ -94,6 +98,15 @@ def build():
     
     # 清理构建文件
     shutil.rmtree("build_resources")
+
+    # 在 Windows 上创建启动脚本
+    if platform.system() == 'Windows':
+        launcher_script = """@echo off
+start /B XHS_Screenshot.exe
+start http://127.0.0.1:5000
+"""
+        with open("dist/启动程序.bat", "w", encoding="utf-8") as f:
+            f.write(launcher_script)
 
 if __name__ == "__main__":
     try:
