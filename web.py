@@ -18,6 +18,7 @@ import shutil
 import socket
 import requests
 from urllib.parse import urljoin
+import json
 
 app = Flask(__name__)
 CORS(app)  # 启用 CORS
@@ -309,11 +310,53 @@ def find_available_port(start_port=5000, max_attempts=10):
 
 @app.route('/check_config')
 def check_config():
-    """检查是否存在浏览器配置"""
-    has_config = os.path.exists("./chrome_user_data")
-    return jsonify({
-        'has_config': has_config
-    })
+    """检查是否存在有效的浏览器配置"""
+    try:
+        # 检查 cookie 文件是否存在
+        cookie_file = "./chrome_user_data/cookies.json"
+        if not os.path.exists(cookie_file):
+            return jsonify({
+                'has_config': False,
+                'message': '未找到配置文件'
+            })
+            
+        # 检查 cookie 文件是否有效
+        try:
+            with open(cookie_file, 'r', encoding='utf-8') as f:
+                cookies = json.load(f)
+                
+            # 检查是否有有效的 cookie
+            if not cookies or not isinstance(cookies, list) or len(cookies) == 0:
+                return jsonify({
+                    'has_config': False,
+                    'message': 'Cookie 文件无效'
+                })
+                
+            # 检查必要的 cookie 字段
+            required_fields = ['name', 'value', 'domain']
+            for cookie in cookies:
+                if not all(field in cookie for field in required_fields):
+                    return jsonify({
+                        'has_config': False,
+                        'message': 'Cookie 格式无效'
+                    })
+            
+            return jsonify({
+                'has_config': True,
+                'message': '找到有效的配置'
+            })
+            
+        except (json.JSONDecodeError, IOError) as e:
+            return jsonify({
+                'has_config': False,
+                'message': f'Cookie 文件读取失败: {str(e)}'
+            })
+            
+    except Exception as e:
+        return jsonify({
+            'has_config': False,
+            'message': f'检查配置时出错: {str(e)}'
+        })
 
 @app.route('/stop_process', methods=['POST'])
 def stop_process():

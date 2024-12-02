@@ -309,6 +309,16 @@
         .warning {
             color: #ffc107;
         }
+        .config-status {
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        .config-status.success {
+            color: #28a745;
+        }
+        .config-status.error {
+            color: #dc3545;
+        }
     </style>
 </head>
 <body>
@@ -320,6 +330,7 @@
                 <div class="checkbox-group">
                     <input type="checkbox" id="useConfig" disabled>
                     <label for="useConfig">使用上次浏览器配置</label>
+                    <div id="configStatus" class="config-status"></div>
                 </div>
                 
                 <textarea id="urlList" placeholder="请输入URL列表，每行一个URL"></textarea>
@@ -554,12 +565,31 @@
                 .then(response => response.json())
                 .then(data => {
                     const checkbox = document.getElementById('useConfig');
+                    const statusLabel = document.getElementById('configStatus');
+                    
                     if (data.has_config) {
                         checkbox.disabled = false;
+                        if (statusLabel) {
+                            statusLabel.textContent = data.message;
+                            statusLabel.className = 'config-status success';
+                        }
                     } else {
                         checkbox.disabled = true;
                         checkbox.checked = false;
+                        if (statusLabel) {
+                            statusLabel.textContent = data.message;
+                            statusLabel.className = 'config-status error';
+                        }
+                        // 保存状态到 localStorage
+                        localStorage.setItem('useConfigState', 'false');
                     }
+                })
+                .catch(error => {
+                    console.error('检查配置失败:', error);
+                    const checkbox = document.getElementById('useConfig');
+                    checkbox.disabled = true;
+                    checkbox.checked = false;
+                    localStorage.setItem('useConfigState', 'false');
                 });
         }
         
