@@ -12,6 +12,7 @@ import sys
 import shutil
 from select import select
 from selenium.webdriver.common.action_chains import ActionChains
+import json
 
 # 添加用户数据目录的常量
 USER_DATA_DIR = "./chrome_user_data"
@@ -42,81 +43,64 @@ def setup_browser(use_previous_session=False):
     chrome_options.add_experimental_option("mobileEmulation", mobile_emulation)
     chrome_options.add_argument('--disable-blink-features=AutomationControlled')
     
-    # 如果选择使用上次会话，添加用户数据目录
-    if use_previous_session and os.path.exists(USER_DATA_DIR):
-        chrome_options.add_argument(f'user-data-dir={USER_DATA_DIR}')
-    
+    # 创建浏览器实例
     driver = webdriver.Chrome(options=chrome_options)
     driver.set_window_size(target_width, target_height)
+    
+    # 如果使用上次会话，加载cookies
+    if use_previous_session:
+        try:
+            cookie_file = "./chrome_user_data/cookies.json"
+            if os.path.exists(cookie_file):
+                # 先访问网站，然后才能添加cookie
+                driver.get("https://www.xiaohongshu.com")
+                time.sleep(1)  # 等待页面加载
+                
+                # 加载并添加cookies
+                with open(cookie_file, 'r', encoding='utf-8') as f:
+                    cookies = json.load(f)
+                
+                for cookie in cookies:
+                    try:
+                        driver.add_cookie(cookie)
+                    except Exception as e:
+                        print(f"添加cookie失败: {str(e)}")
+                        continue
+                
+                # 刷新页面使cookie生效
+                driver.refresh()
+                print("已恢复登录状态")
+            else:
+                print("未找到cookie文件")
+        except Exception as e:
+            print(f"加载cookie失败: {str(e)}")
     
     return driver
 
 def save_browser_session(driver):
-    """保存浏览器会话信息"""
+    """保存浏览器会话信息（仅保存cookies）"""
     try:
+        print("正在保存浏览器登录信息...")
+        
+        # 获取所有cookies
+        cookies = driver.get_cookies()
+        if not cookies:
+            print("未找到任何cookie信息")
+            return False
+        
         # 确保目录存在
-        if os.path.exists(USER_DATA_DIR):
-            try:
-                shutil.rmtree(USER_DATA_DIR)
-                time.sleep(0.5)  # 等待文件系统操作完成
-            except Exception as e:
-                print(f"删除旧配置失败: {str(e)}")
-                return False
+        os.makedirs("./chrome_user_data", exist_ok=True)
         
-        # 获取源目录
-        chrome_temp_dir = driver.capabilities['chrome']['userDataDir']
-        if not os.path.exists(chrome_temp_dir):
-            print(f"找不到浏览器配置目录: {chrome_temp_dir}")
-            return False
-            
-        print(f"正在保存浏览器配置...")
-        print(f"源目录: {chrome_temp_dir}")
-        print(f"目标目录: {USER_DATA_DIR}")
+        # 保存cookies到文件
+        cookie_file = "./chrome_user_data/cookies.json"
+        with open(cookie_file, 'w', encoding='utf-8') as f:
+            json.dump(cookies, f)
         
-        # 先列出所有要复制的文件
-        files_to_copy = []
-        for root, dirs, files in os.walk(chrome_temp_dir):
-            for file in files:
-                if (not file.startswith('Singleton') and 
-                    not file.endswith('.lock')):
-                    src_path = os.path.join(root, file)
-                    dst_path = os.path.join(
-                        USER_DATA_DIR,
-                        os.path.relpath(src_path, chrome_temp_dir)
-                    )
-                    files_to_copy.append((src_path, dst_path))
-        
-        # 创建目标目录结构
-        os.makedirs(USER_DATA_DIR, exist_ok=True)
-        for _, dst_path in files_to_copy:
-            os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-        
-        # 复制文件
-        success_count = 0
-        for src_path, dst_path in files_to_copy:
-            try:
-                if os.path.exists(src_path):  # 再次检查文件是否存在
-                    shutil.copy2(src_path, dst_path)
-                    success_count += 1
-            except Exception as e:
-                print(f"复制文件失败 {src_path}: {str(e)}")
-        
-        # 验证配置是否保存成功
-        if success_count > 0:
-            print(f"浏览器配置保存成功 (复制了 {success_count} 个文件)")
-            return True
-        else:
-            print("浏览器配置保存失败：没有成功复制任何文件")
-            return False
+        print(f"成功保存了 {len(cookies)} 个cookie")
+        return True
             
     except Exception as e:
-        print(f"保存浏览器配置失败: {str(e)}")
-        # 如果保存失败，尝试清理已创建的目录
-        if os.path.exists(USER_DATA_DIR):
-            try:
-                shutil.rmtree(USER_DATA_DIR)
-            except:
-                pass
+        print(f"保存cookie失败: {str(e)}")
         return False
 
 def ask_yes_no(question, default=True):

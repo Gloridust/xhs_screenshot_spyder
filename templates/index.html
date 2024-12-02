@@ -367,8 +367,6 @@
                             confirmBtn.style.display = 'inline-block';
                         } else if (msg.includes("已确认登录")) {
                             confirmBtn.style.display = 'none';
-                        } else if (msg.includes("浏览器配置已保存")) {
-                            checkConfig();
                         }
                         
                         if (msg.includes("✨ 任务完成")) {
@@ -542,7 +540,6 @@
                     const checkbox = document.getElementById('useConfig');
                     if (data.has_config) {
                         checkbox.disabled = false;
-                        checkbox.checked = false;
                     } else {
                         checkbox.disabled = true;
                         checkbox.checked = false;
@@ -552,6 +549,11 @@
         
         document.addEventListener('DOMContentLoaded', function() {
             checkConfig();
+            const checkbox = document.getElementById('useConfig');
+            const savedState = localStorage.getItem('useConfigState');
+            if (savedState !== null) {
+                checkbox.checked = savedState === 'true';
+            }
             updateScreenshots();
         });
         
@@ -594,6 +596,11 @@
             }
         `;
         document.head.appendChild(style);
+        
+        document.getElementById('useConfig').addEventListener('change', function(e) {
+            // 保存用户的选择到 localStorage
+            localStorage.setItem('useConfigState', e.target.checked);
+        });
     </script>
 </body>
 </html> 
