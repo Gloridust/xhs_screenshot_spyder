@@ -389,7 +389,7 @@ def process_single_url(driver, url, index, top_img, bottom_img, back_icon):
         driver.get(url)
         
         # 等待页面加载完成
-        time.sleep(1)
+        time.sleep(0.5)
         
         # 检查并点击"好的"按钮
         check_and_click_ok_button(driver)
