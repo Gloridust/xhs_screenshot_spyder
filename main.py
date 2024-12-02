@@ -382,6 +382,37 @@ def check_and_click_collect_guide(driver):
         print(f"处理收藏夹引导时出错: {str(e)}")
         return False
 
+def check_and_close_login_popup(driver):
+    """检查并关闭登录提示框"""
+    try:
+        # 检查是否存在登录提示框
+        try:
+            login_popup = driver.find_element(By.XPATH, '//*[@id="app"]/div[1]/div/div[1]/div[2]/div[1]')
+            if login_popup:
+                print("检测到登录提示框，尝试关闭...")
+                
+                # 点击关闭按钮
+                close_button = driver.find_element(By.XPATH, '/html/body/div[1]/div[1]/div/div[1]/div[1]')
+                close_button.click()
+                
+                # 等待动画效果
+                time.sleep(0.1)
+                
+                # 验证提示框是否已关闭
+                try:
+                    driver.find_element(By.XPATH, '//*[@id="app"]/div[1]/div/div[1]/div[2]/div[1]')
+                    print("警告：登录提示框可能未成功关闭")
+                except NoSuchElementException:
+                    print("登录提示框已关闭")
+                    return True
+                    
+        except NoSuchElementException:
+            return False  # 没有找到提示框，静默返回
+            
+    except Exception as e:
+        print(f"处理登录提示框时出错: {str(e)}")
+        return False
+
 def process_single_url(driver, url, index, top_img, bottom_img, back_icon):
     """处理单个URL的截图"""
     try:
@@ -389,7 +420,10 @@ def process_single_url(driver, url, index, top_img, bottom_img, back_icon):
         driver.get(url)
         
         # 等待页面加载完成
-        time.sleep(0.5)
+        time.sleep(0.8)
+        
+        # 检查并关闭登录提示框
+        check_and_close_login_popup(driver)
         
         # 检查并点击"好的"按钮
         check_and_click_ok_button(driver)
@@ -648,7 +682,7 @@ def prepare_top_image():
                 
                 # 如果临时文件保存成功，则替换原文件
                 shutil.move(temp_path, top_path)
-                print("顶部图片已调整到��确尺寸")
+                print("顶部图片已调整到确尺寸")
                 return True
             except Exception as e:
                 print(f"保存图片失败: {str(e)}")
