@@ -15,6 +15,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 import json
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.core.utils import ChromeType
 
 # 添加用户数据目录的常量
 USER_DATA_DIR = "./chrome_user_data"
@@ -46,24 +47,18 @@ def setup_browser(use_previous_session=False):
     chrome_options.add_argument('--disable-blink-features=AutomationControlled')
     
     try:
-        # 尝试使用 webdriver_manager 安装和获取 ChromeDriver
+        # 自动下载和配置 ChromeDriver
         service = Service(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=chrome_options)
     except Exception as e:
-        print(f"使用 webdriver_manager 失败: {str(e)}")
+        print(f"Chrome WebDriver 安装失败，尝试使用系统 Chrome: {str(e)}")
         try:
-            # 如果失败，尝试使用本地打包的 ChromeDriver
-            if getattr(sys, 'frozen', False):
-                # 如果是打包后的程序
-                chromedriver_path = os.path.join(sys._MEIPASS, "chromedriver.exe")
-            else:
-                # 如果是开发环境
-                chromedriver_path = "chromedriver.exe"
-            
-            service = Service(chromedriver_path)
+            # 尝试使用系统 Chrome
+            service = Service(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install())
             driver = webdriver.Chrome(service=service, options=chrome_options)
         except Exception as e:
-            print(f"使用本地 ChromeDriver 失败: {str(e)}")
+            print(f"浏览器启动失败: {str(e)}")
+            print("请确保系统已安装 Chrome 或 Chromium 浏览器")
             raise
     
     driver.set_window_size(target_width, target_height)
