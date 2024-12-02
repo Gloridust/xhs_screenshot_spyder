@@ -13,6 +13,8 @@ import shutil
 from select import select
 from selenium.webdriver.common.action_chains import ActionChains
 import json
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 
 # 添加用户数据目录的常量
 USER_DATA_DIR = "./chrome_user_data"
@@ -43,8 +45,27 @@ def setup_browser(use_previous_session=False):
     chrome_options.add_experimental_option("mobileEmulation", mobile_emulation)
     chrome_options.add_argument('--disable-blink-features=AutomationControlled')
     
-    # 创建浏览器实例
-    driver = webdriver.Chrome(options=chrome_options)
+    try:
+        # 尝试使用 webdriver_manager 安装和获取 ChromeDriver
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+    except Exception as e:
+        print(f"使用 webdriver_manager 失败: {str(e)}")
+        try:
+            # 如果失败，尝试使用本地打包的 ChromeDriver
+            if getattr(sys, 'frozen', False):
+                # 如果是打包后的程序
+                chromedriver_path = os.path.join(sys._MEIPASS, "chromedriver.exe")
+            else:
+                # 如果是开发环境
+                chromedriver_path = "chromedriver.exe"
+            
+            service = Service(chromedriver_path)
+            driver = webdriver.Chrome(service=service, options=chrome_options)
+        except Exception as e:
+            print(f"使用本地 ChromeDriver 失败: {str(e)}")
+            raise
+    
     driver.set_window_size(target_width, target_height)
     
     # 如果使用上次会话，加载cookies

@@ -86,8 +86,13 @@ def build():
         f'--hidden-import requests '
         f'--hidden-import urllib3 '
         f'--hidden-import PIL '
+        f'--hidden-import selenium '
+        f'--hidden-import webdriver_manager '
         f'--collect-data PIL '
         f'--collect-all requests '
+        f'--collect-all selenium '
+        f'--collect-all webdriver_manager '
+        f'--add-binary "chromedriver.exe;." '  # 添加 ChromeDriver
         f'{icon_option}'
         f'--name "XHS_Screenshot" '
         f'build_resources/run.py'

@@ -5,4 +5,5 @@ flask-cors
 opencv-python
 numpy
 pyinstaller
-requests 
+requests
+webdriver-manager 
