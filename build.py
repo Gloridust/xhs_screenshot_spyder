@@ -45,18 +45,32 @@ def create_entry_point():
 import web
 import os
 import sys
+from web import output_queue
 
 if __name__ == '__main__':
-    # 确保工作目录正确
-    if getattr(sys, 'frozen', False):
-        os.chdir(os.path.dirname(sys.executable))
-    
-    # 创建必要的目录
-    os.makedirs('screenshot', exist_ok=True)
-    os.makedirs('src', exist_ok=True)
-    
-    # 启动应用
-    web.app.run(host='0.0.0.0', port=web.find_available_port())
+    try:
+        # 确保工作目录正确
+        if getattr(sys, 'frozen', False):
+            os.chdir(os.path.dirname(sys.executable))
+        
+        # 创建必要的目录
+        os.makedirs('screenshot', exist_ok=True)
+        os.makedirs('src', exist_ok=True)
+        
+        # 在启动浏览器前初始化 ChromeDriver
+        output_queue.put("正在初始化浏览器环境...")
+        init_success = web.init_chrome_driver()
+        if not init_success:
+            output_queue.put("⚠️ ChromeDriver 初始化失败，程序可能无法正常运行")
+        
+        # 启动应用
+        port = web.find_available_port()
+        output_queue.put(f"使用端口: {port}")
+        web.app.run(host='0.0.0.0', port=port)
+        
+    except Exception as e:
+        output_queue.put(f"启动服务器失败: {str(e)}")
+        input("按回车键退出...")
 """
     
     with open("build_resources/run.py", "w", encoding="utf-8") as f:
