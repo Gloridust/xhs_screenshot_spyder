@@ -45,7 +45,26 @@ def create_entry_point():
 import web
 import os
 import sys
+import time
+import webbrowser
 from web import output_queue
+
+def init_with_progress():
+    \"\"\"带进度显示的初始化\"\"\"
+    print("正在初始化浏览器环境...")
+    print("1. 检查 Chrome 浏览器...")
+    
+    try:
+        print("2. 下载 ChromeDriver...")
+        init_success = web.init_chrome_driver()
+        if not init_success:
+            print("⚠️ ChromeDriver 初始化失败，程序可能无法正常运行")
+            return False
+        print("✓ 浏览器环境初始化完成")
+        return True
+    except Exception as e:
+        print(f"初始化失败: {str(e)}")
+        return False
 
 if __name__ == '__main__':
     try:
@@ -57,19 +76,28 @@ if __name__ == '__main__':
         os.makedirs('screenshot', exist_ok=True)
         os.makedirs('src', exist_ok=True)
         
-        # 在启动浏览器前初始化 ChromeDriver
-        output_queue.put("正在初始化浏览器环境...")
-        init_success = web.init_chrome_driver()
-        if not init_success:
-            output_queue.put("⚠️ ChromeDriver 初始化失败，程序可能无法正常运行")
+        # 在启动 Web 服务前初始化 ChromeDriver
+        print("正在准备环境，请稍候...")
+        init_success = init_with_progress()
         
-        # 启动应用
+        # 获取可用端口
         port = web.find_available_port()
-        output_queue.put(f"使用端口: {port}")
+        print(f"使用端口: {port}")
+        
+        # 启动浏览器（延迟启动，等待服务器准备就绪）
+        url = f'http://127.0.0.1:{port}'
+        def open_browser():
+            time.sleep(1)  # 等待服务器启动
+            webbrowser.open_new(url)
+        
+        import threading
+        threading.Thread(target=open_browser, daemon=True).start()
+        
+        # 启动 Flask 应用
         web.app.run(host='0.0.0.0', port=port)
         
     except Exception as e:
-        output_queue.put(f"启动服务器失败: {str(e)}")
+        print(f"启动失败: {str(e)}")
         input("按回车键退出...")
 """
     
@@ -116,8 +144,8 @@ def build():
     # 在 Windows 上创建启动脚本
     if platform.system() == 'Windows':
         launcher_script = """@echo off
-start /B XHS_Screenshot.exe
-start http://127.0.0.1:5000
+echo 正在启动程序，请稍候...
+start /wait /B XHS_Screenshot.exe
 """
         with open("dist/启动程序.bat", "w", encoding="utf-8") as f:
             f.write(launcher_script)

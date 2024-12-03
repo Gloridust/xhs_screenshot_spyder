@@ -141,11 +141,15 @@ def init_chrome_driver():
         
         # 使用更简单的初始化方式
         try:
+            output_queue.put("2. 下载 ChromeDriver...")
+            output_queue.put("progress:10")  # 进度提示
             driver_path = ChromeDriverManager().install()
+            output_queue.put("progress:50")  # 进度提示
         except Exception as e:
             # 如果自动安装失败，尝试使用系统中已有的 ChromeDriver
             output_queue.put(f"自动下载 ChromeDriver 失败: {str(e)}")
             output_queue.put("尝试查找系统中已安装的 ChromeDriver...")
+            output_queue.put("progress:60")  # 进度提示
             
             # 在常见位置查找 ChromeDriver
             possible_paths = [
@@ -164,9 +168,11 @@ def init_chrome_driver():
             if not driver_path:
                 raise Exception("未找到可用的 ChromeDriver")
         
-        output_queue.put("2. 配置 ChromeDriver 服务...")
+        output_queue.put("3. 配置 ChromeDriver 服务...")
+        output_queue.put("progress:80")  # 进度提示
         chrome_service = Service(driver_path)
         
+        output_queue.put("progress:100")  # 进度提示
         output_queue.put("✓ 浏览器环境初始化完成")
         return True
         
@@ -177,10 +183,6 @@ def init_chrome_driver():
         output_queue.put("1. Chrome 浏览器是否正确安装")
         output_queue.put("2. 网络连接是否正常")
         output_queue.put("3. 是否有足够的磁盘空间")
-        output_queue.put("\n如果问题持续，请手动下载 ChromeDriver:")
-        output_queue.put("1. 访问 https://chromedriver.chromium.org/downloads")
-        output_queue.put("2. 下载与您的 Chrome 浏览器版本匹配的 ChromeDriver")
-        output_queue.put("3. 解压并将 chromedriver 放在程序所在目录")
         return False
 
 @app.route('/')

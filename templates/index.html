@@ -319,6 +319,32 @@
         .config-status.error {
             color: #dc3545;
         }
+        .progress-container {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        .progress {
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 5px;
+            margin-bottom: 5px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background-color: #28a745;
+            border-radius: 5px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -346,6 +372,12 @@
             </div>
             
             <div class="status" id="status"></div>
+            <div class="progress-container" id="progressContainer" style="display: none;">
+                <div class="progress">
+                    <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%"></div>
+                </div>
+                <div class="progress-text" id="progressText">初始化中...</div>
+            </div>
             <div id="output"></div>
         </div>
         
@@ -376,8 +408,24 @@
                     const output = document.getElementById('output');
                     const confirmBtn = document.getElementById('confirmLoginBtn');
                     const status = document.getElementById('status');
+                    const progressContainer = document.getElementById('progressContainer');
+                    const progressBar = document.getElementById('progressBar');
+                    const progressText = document.getElementById('progressText');
                     
                     data.messages.forEach(msg => {
+                        // 处理进度信息
+                        if (msg.startsWith('progress:')) {
+                            const progress = parseInt(msg.split(':')[1]);
+                            progressContainer.style.display = 'block';
+                            progressBar.style.width = `${progress}%`;
+                            if (progress === 100) {
+                                setTimeout(() => {
+                                    progressContainer.style.display = 'none';
+                                }, 1000);
+                            }
+                            return;
+                        }
+                        
                         // 处理状态更新
                         if (msg.startsWith("状态更新: ")) {
                             status.textContent = msg.replace("状态更新: ", "");
