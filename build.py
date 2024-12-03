@@ -144,10 +144,12 @@ def build():
     # 在 Windows 上创建启动脚本
     if platform.system() == 'Windows':
         launcher_script = """@echo off
-echo 正在启动程序，请稍候...
+chcp 65001 > nul
+echo [Starting] Starting program, please wait...
 start /wait /B XHS_Screenshot.exe
 """
-        with open("dist/启动程序.bat", "w", encoding="utf-8") as f:
+        # 使用 UTF-8 编码写入文件
+        with open("dist/启动程序.bat", "w", encoding="utf-8", newline='\n') as f:
             f.write(launcher_script)
 
 if __name__ == "__main__":

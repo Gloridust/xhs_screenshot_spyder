@@ -52,24 +52,37 @@ def setup_browser(use_previous_session=False, service=None):
         try:
             cookie_file = "./chrome_user_data/cookies.json"
             if os.path.exists(cookie_file):
+                print("正在恢复登录状态...")
+                
                 # 先访问网站，然后才能添加cookie
                 driver.get("https://www.xiaohongshu.com")
-                time.sleep(0.2)  # 等待页面加载
+                time.sleep(1)  # 等待页面加载
                 
                 # 加载并添加cookies
                 with open(cookie_file, 'r', encoding='utf-8') as f:
                     cookies = json.load(f)
                 
+                success_count = 0
                 for cookie in cookies:
                     try:
-                        driver.add_cookie(cookie)
+                        # 确保cookie格式正确
+                        if 'name' in cookie and 'value' in cookie:
+                            driver.add_cookie(cookie)
+                            success_count += 1
                     except Exception as e:
                         print(f"添加cookie失败: {str(e)}")
                         continue
                 
                 # 刷新页面使cookie生效
                 driver.refresh()
-                print("已恢复登录状态")
+                print(f"已恢复 {success_count}/{len(cookies)} 个cookie")
+                
+                # 验证登录状态
+                time.sleep(1)
+                if "login" in driver.current_url.lower():
+                    print("警告：cookie可能已失效，需要重新登录")
+                else:
+                    print("登录状态恢复成功")
             else:
                 print("未找到cookie文件")
         except Exception as e:
@@ -94,7 +107,7 @@ def save_browser_session(driver):
         # 保存cookies到文件
         cookie_file = "./chrome_user_data/cookies.json"
         with open(cookie_file, 'w', encoding='utf-8') as f:
-            json.dump(cookies, f)
+            json.dump(cookies, f, ensure_ascii=False, indent=2)
         
         print(f"成功保存了 {len(cookies)} 个cookie")
         return True
@@ -545,7 +558,7 @@ def capture_screenshots():
         
         # 只有在没有使用历史配置时才询问是否保存
         if not use_previous:
-            if ask_yes_no("是否保存当前的浏览器配置（包含登录状态等）？", default=True):
+            if ask_yes_no("是否保存当前的浏览器配置（包��登录状态等）？", default=True):
                 save_browser_session(driver)
                 
     finally:
