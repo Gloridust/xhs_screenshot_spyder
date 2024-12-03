@@ -20,7 +20,6 @@ import requests
 from urllib.parse import urljoin
 import json
 from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
 
 app = Flask(__name__)
 CORS(app)  # 启用 CORS
@@ -138,51 +137,24 @@ def init_chrome_driver():
     try:
         output_queue.put("开始初始化浏览器环境...")
         output_queue.put("1. 检查 Chrome 浏览器...")
+        output_queue.put("progress:30")  # 进度提示
         
-        # 使用更简单的初始化方式
-        try:
-            output_queue.put("2. 下载 ChromeDriver...")
-            output_queue.put("progress:10")  # 进度提示
-            driver_path = ChromeDriverManager().install()
-            output_queue.put("progress:50")  # 进度提示
-        except Exception as e:
-            # 如果自动安装失败，尝试使用系统中已有的 ChromeDriver
-            output_queue.put(f"自动下载 ChromeDriver 失败: {str(e)}")
-            output_queue.put("尝试查找系统中已安装的 ChromeDriver...")
-            output_queue.put("progress:60")  # 进度提示
-            
-            # 在常见位置查找 ChromeDriver
-            possible_paths = [
-                "chromedriver",  # PATH 中的 ChromeDriver
-                "/usr/local/bin/chromedriver",  # macOS/Linux 常见位置
-                "C:\\Program Files\\ChromeDriver\\chromedriver.exe",  # Windows 常见位置
-                "./chromedriver.exe",  # 当前目录
-            ]
-            
-            driver_path = None
-            for path in possible_paths:
-                if os.path.exists(path):
-                    driver_path = path
-                    break
-            
-            if not driver_path:
-                raise Exception("未找到可用的 ChromeDriver")
-        
-        output_queue.put("3. 配置 ChromeDriver 服务...")
-        output_queue.put("progress:80")  # 进度提示
-        chrome_service = Service(driver_path)
+        # 直接使用默认的 Service，不需要指定路径
+        output_queue.put("2. 配置浏览器服务...")
+        output_queue.put("progress:60")  # 进度提示
+        chrome_service = Service()
         
         output_queue.put("progress:100")  # 进度提示
         output_queue.put("✓ 浏览器环境初始化完成")
         return True
         
     except Exception as e:
-        error_msg = f"ChromeDriver 初始化失败: {str(e)}"
+        error_msg = f"浏览器初始化失败: {str(e)}"
         output_queue.put(error_msg)
         output_queue.put("\n请检查:")
         output_queue.put("1. Chrome 浏览器是否正确安装")
-        output_queue.put("2. 网络连接是否正常")
-        output_queue.put("3. 是否有足够的磁盘空间")
+        output_queue.put("2. 是否有管理员权限")
+        output_queue.put("3. 网络连接是否正常")
         return False
 
 @app.route('/')
@@ -410,7 +382,7 @@ def find_available_port(start_port=5000, max_attempts=10):
 
 @app.route('/check_config')
 def check_config():
-    """检查是否存在有效的浏览器配置"""
+    """检查是否存有效的浏器配置"""
     try:
         # 检查 cookie 文件是否存在
         cookie_file = "./chrome_user_data/cookies.json"

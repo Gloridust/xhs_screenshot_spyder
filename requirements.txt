@@ -6,4 +6,3 @@ opencv-python
 numpy
 pyinstaller
 requests
-webdriver-manager>=3.8.0 
